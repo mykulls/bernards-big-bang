@@ -4,9 +4,9 @@ import {tiny, defs} from './examples/common.js';
 const { vec3, vec4, color, hex_color, Mat4, Shape, Material, Shader, Texture, Component } = tiny;
 
 export class Star {
-    constructor(){
-        this.scalar = vec3(0,0,0);   //scale stars of diff sizes
-        this.pos = vec3(0,0,0);
+    constructor(scale){
+        this.scale = scale;
+        this.pos = vec3(2,2,2);
         this.shapes = {
             sphere: new defs.Subdivision_Sphere(4),
             cone: new defs.Rounded_Closed_Cone(50,50),
@@ -14,7 +14,10 @@ export class Star {
     }
     draw(webgl_manager, uniforms, shapes, materials){
         const star_color = hex_color("#FCF4A3");
+
         let star_transform = Mat4.identity();
+        star_transform = star_transform
+            .times(Mat4.scale(this.scale, this.scale, this.scale));
 
         //top point
         let point1_transform = star_transform
@@ -51,20 +54,33 @@ export class Star {
 };
 
 export class Bernard{
-    constructor(){
-        this.scalar = vec3(0,0,0);
-        this.pos = vec3(0,0,0);
+    constructor(scale){
+        this.scale = scale;
+        this.pos = vec3(2,2,2);
         this.shapes = {
             sphere: new defs.Subdivision_Sphere(4),
             cylinder: new defs.Capped_Cylinder(50,50),
         };
     }
+    move_left = () => {
+        this.pos[0] -= 0.25;
+        console.log(this.pos);
+    }
 
-    draw(webgl_manager, uniforms, shapes, materials){
+    move_right = () => {
+        this.pos[0] += 0.25;
+        console.log(this.pos);
+    }
+
+    draw(webgl_manager, uniforms, shapes, materials, x, y, z){
         const body_color = hex_color("#96C38D");
         const pupil_color = hex_color("#FFFFFF");
         const eye_color = hex_color("001a00");
+
         let bernard_transform = Mat4.identity();
+        bernard_transform = bernard_transform
+            .times(Mat4.translation(x,y,z))
+            .times(Mat4.scale(this.scale, this.scale, this.scale));
 
         let body_transform = bernard_transform
             .times(Mat4.scale(1.4, 1.4, 1.4))

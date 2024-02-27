@@ -46,8 +46,8 @@ const Part_one_hermite_base = defs.Part_one_hermite_base =
         this.ball_radius = 0.25;
 
         // INSTANTIATE OUR OBJECTS HERE
-        this.star = new Star();
-        this.bernard = new Bernard();
+        //this.star = new Star(0.5); //parameter scales star
+        this.bernard = new Bernard(0.5); //parameter scales bernard
       }
 
       render_animation( caller )
@@ -138,8 +138,7 @@ export class Part_one_hermite extends Part_one_hermite_base
 
     // DRAW OBJECTS HERE
     //this.star.draw(caller, this.uniforms, this.shapes, this.materials);
-    //this.bernard.draw(caller, this.uniforms, this.shapes, this.materials);
-  
+    this.bernard.draw(caller, this.uniforms, this.shapes, this.materials, this.bernard.pos[0], this.bernard.pos[1], this.bernard.pos[2]);
   }
 
   render_controls()
@@ -154,6 +153,10 @@ export class Part_one_hermite extends Part_one_hermite_base
     this.key_triggered_button( "Load", [], this.load_spline );
     this.new_line();
     this.key_triggered_button( "Export", [], this.export_spline );
+    this.new_line();
+    this.key_triggered_button( "move left", ["j"], () => this.bernard.move_left());
+    this.new_line();
+    this.key_triggered_button( "move right", ["l"], () => this.bernard.move_right());
     this.new_line();
 
     /* Some code for your reference
