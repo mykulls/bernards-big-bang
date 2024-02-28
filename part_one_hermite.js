@@ -1,8 +1,10 @@
 import {tiny, defs} from './examples/common.js';
 import { Body } from './collision.js';
+import { Star, Bernard } from './objects.js';
 
 // Pull these names into this module's scope for convenience:
-const { vec3, vec4, color, Mat4, Shape, Material, Shader, Texture, Component } = tiny;
+const { vec3, vec4, color, hex_color, Mat4, Shape, Material, Shader, Texture, Component } = tiny;
+
 
 // TODO: you should implement the required classes here or in another file.
 
@@ -42,10 +44,12 @@ const Part_one_hermite_base = defs.Part_one_hermite_base =
         this.materials.rgb = { shader: tex_phong, ambient: .5, texture: new Texture( "assets/rgb.jpg" ) }
 
         this.ball_location = vec3(1, 1, 1);
-        this.ball_location2 = vec3(1, 1, 1.5);
         this.ball_radius = 0.25;
 
         this.collider = { intersect_test: Body.intersect_sphere, points: new defs.Subdivision_Sphere(1), leeway: .5 }
+        // INSTANTIATE OUR OBJECTS HERE
+        //this.star = new Star(0.5); //parameter scales star
+        this.bernard = new Bernard(0.5); //parameter scales bernard
       }
 
       render_animation( caller )
@@ -123,7 +127,7 @@ export class Part_one_hermite extends Part_one_hermite_base
 
     const blue = color( 0,0,1,1 ), yellow = color( 1,0.7,0,1 );
 
-    const t = this.t = this.uniforms.animation_time/1000;
+    const t = this.t = this.uniforms.animation_time/1000; 
 
     // !!! Draw ground
     let floor_transform = Mat4.translation(0, 0, 0).times(Mat4.scale(10, 0.01, 10));
@@ -132,28 +136,12 @@ export class Part_one_hermite extends Part_one_hermite_base
     // !!! Draw ball (for reference)
     let ball_transform = Mat4.translation(this.ball_location[0], this.ball_location[1], this.ball_location[2])
         .times(Mat4.scale(this.ball_radius, this.ball_radius, this.ball_radius));
+    this.shapes.ball.draw( caller, this.uniforms, ball_transform, { ...this.materials.metal, color: blue } );
 
-     // !!! Draw ball (for reference)
-    let ball_transform2 = Mat4.translation(this.ball_location2[0], this.ball_location2[1], this.ball_location2[2])
-    .times(Mat4.scale(this.ball_radius, this.ball_radius, this.ball_radius));
-
-    // Create instances of Body for each ball
-    let ball1 = new Body(this.shapes.ball, this.materials.plastic, 1, ball_transform); 
-    let ball2 = new Body(this.shapes.ball, this.materials.plastic, 1, ball_transform2); 
-
-    // Set the locations of the balls
-    ball1.emplace(ball_transform);
-    ball2.emplace(ball_transform2);
-
-    this.shapes.ball.draw( caller, this.uniforms, ball1.location_matrix, { ...this.materials.metal, color: blue } );
-    this.shapes.ball.draw( caller, this.uniforms, ball2.location_matrix, { ...this.materials.metal, color: yellow } );
-
-    if (ball1.check_if_colliding(ball2, this.collider)) {
-      console.log(ball1,ball2);
-      console.log("collided ");
-          
+    // DRAW OBJECTS HERE
+    //this.star.draw(caller, this.uniforms, this.shapes, this.materials);
+    this.bernard.draw(caller, this.uniforms, this.shapes, this.materials, this.bernard.pos[0], this.bernard.pos[1], this.bernard.pos[2]);
   }
-}
 
   render_controls()
   {                                 // render_controls(): Sets up a panel of interactive HTML elements, including
@@ -167,6 +155,10 @@ export class Part_one_hermite extends Part_one_hermite_base
     this.key_triggered_button( "Load", [], this.load_spline );
     this.new_line();
     this.key_triggered_button( "Export", [], this.export_spline );
+    this.new_line();
+    this.key_triggered_button( "move left", ["j"], () => this.bernard.move_left());
+    this.new_line();
+    this.key_triggered_button( "move right", ["l"], () => this.bernard.move_right());
     this.new_line();
 
     /* Some code for your reference
