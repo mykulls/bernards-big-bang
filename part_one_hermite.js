@@ -149,8 +149,9 @@ export class Part_one_hermite extends Part_one_hermite_base
     this.shapes.ball.draw( caller, this.uniforms, ball2.location_matrix, { ...this.materials.metal, color: yellow } );
 
     if (ball1.check_if_colliding(ball2, this.collider)) {
-      console.log(ball1,ball2)
-      console.log("collided ")    
+      console.log(ball1,ball2);
+      console.log("collided ");
+          
   }
 }
 
