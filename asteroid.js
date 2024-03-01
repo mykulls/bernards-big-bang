@@ -136,11 +136,13 @@ export
                 this.shapes = {
                     subSphere: new defs.Subdivision_Sphere(1),
                     rock: new defs.Rock(1),
+                    wall: new defs.Square(),
                 };
             }
             random_shape(shape_list = this.shapes) {                                       // random_shape():  Extract a random shape from this.shapes.
                 const shape_names = Object.keys(shape_list);
-                return shape_list[shape_names[~~(shape_names.length * Math.random())]]
+                const first_two_shapes = shape_names.slice(0, 2);
+                return shape_list[first_two_shapes[~~(first_two_shapes.length * Math.random())]];
             }
         }
 
@@ -153,8 +155,12 @@ export class Asteroid extends Simulation {                                      
         this.shapes.square = new defs.Square();
         this.shapes.platform = new defs.Cube();
         const shader = new defs.Fake_Bump_Map(1);
-        this.material = { shader, color: color(.4, .8, .4, 1), ambient: 0.4 };
-        this.platform_material = { shader, color: color(0.2, 0.2, 0.2, 1), ambient: 0.4, diffusivity: 0.7 };
+        this.material = { shader, color: color(.4, .8, .4, 1), ambient: 0.4, specularity: 0 };
+        this.platform_material = { shader, color: color(1, 0.5, 0.2, 1), ambient: 0.1, diffusivity: 0.9 };
+        this.front_space_material = { shader, color: color(0, 0, 0, 1), ambient: 1, diffusivity: 0.1, specularity: 0.1, texture: new Texture("./assets/front.png", "LINEAR_MIPMAP_LINEAR") };
+        this.left_space_material = { shader, color: color(0, 0, 0, 1), ambient: 1, diffusivity: 0.1, specularity: 0.1, texture: new Texture("./assets/left.png", "LINEAR_MIPMAP_LINEAR") };
+        this.back_space_material = { shader, color: color(0, 0, 0, 1), ambient: 1, diffusivity: 0.1, specularity: 0.1, texture: new Texture("./assets/back.png", "LINEAR_MIPMAP_LINEAR") };
+        this.right_space_material = { shader, color: color(0, 0, 0, 1), ambient: 1, diffusivity: 0.1, specularity: 0.1, texture: new Texture("./assets/right.png", "LINEAR_MIPMAP_LINEAR") };
     }
     random_color() {
         return {
@@ -166,7 +172,7 @@ export class Asteroid extends Simulation {                                      
     update_state(dt) {                 // update_state():  Override the base time-stepping code to say what this particular
         // scene should do to its bodies every frame -- including applying forces.
         // Create the platform
-        const platform_size = vec3(15, 1, 10);
+        const platform_size = vec3(10, 1, 5);
         const platform_position = vec3(0, 5, 0);
         const platform = new Body(this.shapes.platform, this.platform_material, platform_size)
             .emplace(Mat4.translation(...platform_position), vec3(0, 0, 0), vec3(0, 0, 0));
@@ -192,26 +198,24 @@ export class Asteroid extends Simulation {                                      
         }
 
         for (let b of this.bodies) {
-            // Gravity on Earth
             b.linear_velocity[1] += dt * -9.8;
 
             // If about to fall through the floor, reverse y velocity
             if (b.center[1] < -8 && b.linear_velocity[1] < 0) {
-                b.linear_velocity[1] *= -0.6;  // Bounce factor
+                b.linear_velocity[1] *= -0.5;  // Bounce factor
             }
 
             // Check for collision with the platform
-            if (b.center[1] - b.size[1] / 2 < platform.center[1] + platform.size[1] / 2 &&
+            if (
+                b.center[1] - b.size[1] / 2 < platform.center[1] + platform.size[1] / 2 &&
                 b.center[1] + b.size[1] / 2 > platform.center[1] - platform.size[1] / 2 &&
-                b.center[0] - b.size[0] / 2 < platform.center[0] + platform.size[0] / 2 &&
-                b.center[0] + b.size[0] / 2 > platform.center[0] - platform.size[0] / 2 &&
-                b.center[2] - b.size[2] / 2 < platform.center[2] + platform.size[2] / 2 &&
-                b.center[2] + b.size[2] / 2 > platform.center[2] - platform.size[2] / 2 &&
+                b.center[0] - b.size[0] / 2 < platform.center[0] + platform.size[0] / 2 + 4.5 &&
+                b.center[0] + b.size[0] / 2 > platform.center[0] - platform.size[0] / 2 - 4.5 &&
+                b.center[2] - b.size[2] / 2 < platform.center[2] + platform.size[2] / 2 + 2 &&
+                b.center[2] + b.size[2] / 2 > platform.center[2] - platform.size[2] / 2 - 2 &&
                 b.linear_velocity[1] < 0
             ) {
-                // Snap to the top of the platform and reverse y velocity
-                b.center[1] = platform.center[1] + platform.size[1] / 2 + b.size[1] / 2;
-                b.linear_velocity[1] *= -0.6;  // Bounce factor
+                b.linear_velocity[1] *= -0.5;  // Bounce factor
             }
         }
 
@@ -228,7 +232,7 @@ export class Asteroid extends Simulation {                                      
             Shader.assign_camera(Mat4.translation(0, 0, -50), this.uniforms);    // Locate the camera here (inverted matrix).
         }
         this.uniforms.projection_transform = Mat4.perspective(Math.PI / 4, caller.width / caller.height, 1, 500);
-        this.uniforms.lights = [defs.Phong_Shader.light_source(vec4(0, -5, -10, 1), color(1, 1, 1, 1), 100000)];
+        this.uniforms.lights = [defs.Phong_Shader.light_source(vec4(-5, 0, -10, 1), color(1, 1, 1, 1), 100000)];
 
         // Draw the ground:
         this.shapes.square.draw(caller, this.uniforms, Mat4.translation(0, -10, 0)
@@ -237,8 +241,14 @@ export class Asteroid extends Simulation {                                      
 
         // Draw the platform
         this.shapes.platform.draw(caller, this.uniforms,
-            Mat4.translation(0, 5, 0).times(Mat4.scale(15, 1, 10)),
-            this.platform_material);
+            Mat4.translation(0, 5, 0).times(Mat4.scale(10, 1, 5)),
+            { ...this.platform_material });
+
+        let model_transform = Mat4.identity().times(Mat4.scale(400, 400, 400));
+        this.shapes.wall.draw(caller, this.uniforms, model_transform.times(Mat4.translation(0, 0, -1)), { ...this.front_space_material });
+        this.shapes.wall.draw(caller, this.uniforms, model_transform.times(Mat4.rotation(Math.PI / 2, 0, 1, 0)).times(Mat4.translation(0, 0, -1)), { ...this.right_space_material });
+        this.shapes.wall.draw(caller, this.uniforms, model_transform.times(Mat4.rotation(-Math.PI / 2, 0, 1, 0)).times(Mat4.translation(0, 0, -1)), { ...this.left_space_material });
+        this.shapes.wall.draw(caller, this.uniforms, model_transform.times(Mat4.rotation(Math.PI, 0, 1, 0)).times(Mat4.translation(0, 0, -1)), { ...this.back_space_material });
     }
     render_explanation() {
         this.document_region.innerHTML += `<p>Replace with text.</p>`;
