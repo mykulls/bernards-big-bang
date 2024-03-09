@@ -56,7 +56,7 @@ export class Star {
 export class Bernard{
     constructor(scale){
         this.scale = scale;
-        this.pos = vec3(2,2,2);
+        this.pos = vec3(2,1,-4);
         this.shapes = {
             sphere: new defs.Subdivision_Sphere(4),
             cylinder: new defs.Capped_Cylinder(50,50),
