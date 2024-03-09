@@ -3,7 +3,115 @@ import {tiny, defs} from './examples/common.js';
 // Pull these names into this module's scope for convenience:
 const { vec3, vec4, color, Mat4, Shape, Material, Shader, Texture, Component } = tiny;
 
-// TODO: you should implement the required classes here or in another file.
+function symplectic_euler(cur_pos, cur_vel, f, m, ts) {
+  const cur_acc = f.times(1.0 / m);
+  const vel = cur_vel.plus(cur_acc.times(ts));
+  const pos = cur_pos.plus(vel.times(ts));
+
+  return { vel, pos };
+}
+
+function platform_forces(platforms, pos, vel) {
+  let f_n = vec3(0, 0, 0);
+  const platform_n = vec3(0, 1, 0);
+
+  // loop through all platforms, return once you find one that the particle intersects with or if none intersect
+  for(const platform of platforms) {
+    const signed_dist = pos.minus(platform.pos).dot(platform_n);
+
+    if(signed_dist < 0 &&
+       pos[0] < platform.pos[0] + platform.w &&
+       pos[0] > platform.pos[0] - platform.w &&
+       pos[2] < platform.pos[2] + platform.h &&
+       pos[2] > platform.pos[2] - platform.h) { // particle below ground and within platform
+      const platform_fric_dir = vel.times(-1).normalized();
+      const spring_f = platform_n.times(-signed_dist).times(platform.ks);
+      const damper_f = platform_fric_dir.times(vel.dot(platform_fric_dir)).times(platform.kd);
+      f_n = spring_f.minus(damper_f);
+      break;
+    }
+  }
+
+  return f_n;
+}
+
+function get_forces(g, platforms, particle) {
+  const { m, pos, vel } = particle;
+  return g.times(m).plus(platform_forces(platforms, pos, vel));
+}
+
+class Platform {
+  constructor(pos=vec3(1, 1, 1), ks=0, kd=0, w=1, h=1) {
+    this.pos = pos;
+    this.ks = ks;
+    this.kd = kd;
+    this.w = w;
+    this.h = h;
+  }
+}
+
+class Particle {
+  constructor(m=0, pos=vec3(0, 0, 0), vel=vec3(0, 0, 0), f=vec3(0, 0, 0)) {
+    this.m = m;
+    this.pos = pos;
+    this.vel = vel;
+    this.f = f;
+    this.original_vel = vel;
+    this.original_pos = pos;
+  }
+
+  update(ts) {
+      ({ vel: this.vel, pos: this.pos } = symplectic_euler(this.pos, this.vel, this.f, this.m, ts));
+      if(this.pos[1] < 0) {
+        this.pos = this.original_pos;
+        this.vel = this.original_vel;
+      }
+  }
+}
+
+class Simulation {
+  constructor(particles=[], platforms=[], ts=1.0/60, g=vec3(0, -9.8, 0)) {
+    this.particles = particles;
+    this.platforms = platforms;
+    this.ts = ts;
+    this.g = g; // should only set the y direction
+  }
+
+  create_particle(m, x, y, z, vx, vy, vz) {
+    this.particles.push(new Particle(m, vec3(x, y, z), vec3(vx, vy, vz)));
+  }
+
+  create_platform(x, y, z, ks, kd, w, h) {
+    this.platforms.push(new Platform(vec3(x, y, z), ks, kd, w, h));
+  }
+
+  update() {
+    this.particles.forEach((particle) => {
+      particle.f = get_forces(this.g, this.platforms, particle);
+    });
+
+    this.particles.forEach((particle) => {
+      particle.update(this.ts);
+    })
+  }
+
+  draw(webgl_manager, uniforms, shapes, materials) {
+    const blue = color(0, 0, 1, 1);
+    const red = color(1, 0, 0, 1);
+
+    this.particles.forEach((particle) => {
+      const pos = particle.pos;
+      const model_transform = Mat4.scale(0.2, 0.2, 0.2).pre_multiply(Mat4.translation(pos[0], pos[1], pos[2]));
+      shapes.ball.draw(webgl_manager, uniforms, model_transform, { ...materials.plastic, color: blue });
+    });
+
+    this.platforms.forEach((platform) => {
+      // !!! Draw platform
+      const p1_t = Mat4.translation(platform.pos[0], platform.pos[1], platform.pos[2]).times(Mat4.scale(platform.w, 0.1, platform.h));
+      shapes.box.draw(webgl_manager, uniforms, p1_t, { ...materials.plastic, color: red } );
+    })
+  }
+}
 
 export
 const Part_two_spring_base = defs.Part_two_spring_base =
@@ -43,7 +151,11 @@ const Part_two_spring_base = defs.Part_two_spring_base =
         this.ball_location = vec3(1, 1, 1);
         this.ball_radius = 0.25;
 
-        // TODO: you should create the necessary shapes
+        this.simulation = new Simulation();
+        this.simulation.create_particle(1, 2, 4, 2, 1, 0, 1);
+        this.simulation.create_platform(2.5, 1, 2.5, 12500, 10);
+        this.simulation.create_platform(5, 2, 5, 12500, 10);
+        this.run = false;
       }
 
       render_animation( caller )
@@ -122,6 +234,8 @@ export class Part_two_spring extends Part_two_spring_base
     const blue = color( 0,0,1,1 ), yellow = color( 1,1,0,1 );
 
     const t = this.t = this.uniforms.animation_time/1000;
+    const dt = this.dt = Math.min(1/60, this.uniforms.animation_delta_time/1000);
+    let t_sim = this.t_sim = t;
 
     // !!! Draw ground
     let floor_transform = Mat4.translation(0, 0, 0).times(Mat4.scale(10, 0.01, 10));
@@ -132,15 +246,20 @@ export class Part_two_spring extends Part_two_spring_base
         .times(Mat4.scale(this.ball_radius, this.ball_radius, this.ball_radius));
     this.shapes.ball.draw( caller, this.uniforms, ball_transform, { ...this.materials.metal, color: blue } );
 
-    // TODO: you should draw spline here.
+    if(this.run) {
+      const t_next = t_sim + dt;
+      for(; this.t_sim <= t_next; this.t_sim += this.simulation.ts) {
+        this.simulation.update();
+      }
+    }
+
+    this.simulation.draw(caller, this.uniforms, this.shapes, this.materials);
   }
 
   render_controls()
   {                                 // render_controls(): Sets up a panel of interactive HTML elements, including
     // buttons with key bindings for affecting this scene, and live info readouts.
-    this.control_panel.innerHTML += "Part Two:";
-    this.new_line();
-    this.key_triggered_button( "Config", [], this.parse_commands );
+    this.control_panel.innerHTML += "Platforms:";
     this.new_line();
     this.key_triggered_button( "Run", [], this.start );
     this.new_line();
@@ -169,13 +288,8 @@ export class Part_two_spring extends Part_two_spring_base
      */
   }
 
-  parse_commands() {
-    document.getElementById("output").value = "parse_commands";
-    //TODO
-  }
-
   start() { // callback for Run button
     document.getElementById("output").value = "start";
-    //TODO
+    this.run = !this.run;
   }
 }
