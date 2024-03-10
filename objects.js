@@ -3,6 +3,13 @@ import {tiny, defs} from './examples/common.js';
 // Pull these names into this module's scope for convenience:
 const { vec3, vec4, color, hex_color, Mat4, Shape, Material, Shader, Texture, Component } = tiny;
 
+function symplectic_euler(cur_pos, cur_vel, f, m, ts) {
+    const cur_acc = f.times(1.0 / m);
+    const vel = cur_vel.plus(cur_acc.times(ts));
+    const pos = cur_pos.plus(vel.times(ts));
+    return { vel, pos };
+}
+
 export class Star {
     constructor(scale){
         this.scale = scale;
@@ -53,10 +60,29 @@ export class Star {
     }
 };
 
-export class Bernard{
-    constructor(scale){
-        this.scale = scale;
-        this.pos = vec3(2,1,-4);
+class Particle {
+    constructor(m=0, pos=vec3(0, 0, 0), vel=vec3(0, 0, 0), f=vec3(0, 0, 0)) {
+      this.m = m;
+      this.pos = pos;
+      this.vel = vel;
+      this.f = f;
+      this.original_vel = vel;
+      this.original_pos = pos;
+    }
+  
+    update(ts) {
+        ({ vel: this.vel, pos: this.pos } = symplectic_euler(this.pos, this.vel, this.f, this.m, ts));
+        if(this.pos[1] < 0) {
+          this.pos = this.original_pos;
+          this.vel = this.original_vel;
+        }
+    }
+  }
+
+export class Bernard extends Particle {
+    constructor(m=0, pos=vec3(0, 0, 0), vel=vec3(0, 0, 0), f=vec3(0, 0, 0)){
+        super(m, pos, vel, f);
+        // this.pos = vec3(2,1,-4);
         this.shapes = {
             sphere: new defs.Subdivision_Sphere(4),
             cylinder: new defs.Capped_Cylinder(50,50),
@@ -72,15 +98,10 @@ export class Bernard{
         console.log(this.pos);
     }
 
-    draw(webgl_manager, uniforms, shapes, materials, x, y, z){
+    draw(webgl_manager, uniforms, materials, bernard_transform){
         const body_color = hex_color("#96C38D");
         const pupil_color = hex_color("#FFFFFF");
         const eye_color = hex_color("001a00");
-
-        let bernard_transform = Mat4.identity();
-        bernard_transform = bernard_transform
-            .times(Mat4.translation(x,y,z))
-            .times(Mat4.scale(this.scale, this.scale, this.scale));
 
         let body_transform = bernard_transform
             .times(Mat4.scale(1.4, 1.4, 1.4))

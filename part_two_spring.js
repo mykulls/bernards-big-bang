@@ -1,15 +1,9 @@
 import {tiny, defs} from './examples/common.js';
+import { Bernard } from './objects.js';
+
 
 // Pull these names into this module's scope for convenience:
 const { vec3, vec4, color, Mat4, Shape, Material, Shader, Texture, Component } = tiny;
-
-function symplectic_euler(cur_pos, cur_vel, f, m, ts) {
-  const cur_acc = f.times(1.0 / m);
-  const vel = cur_vel.plus(cur_acc.times(ts));
-  const pos = cur_pos.plus(vel.times(ts));
-
-  return { vel, pos };
-}
 
 function platform_forces(platforms, pos, vel) {
   let f_n = vec3(0, 0, 0);
@@ -50,35 +44,16 @@ class Platform {
   }
 }
 
-class Particle {
-  constructor(m=0, pos=vec3(0, 0, 0), vel=vec3(0, 0, 0), f=vec3(0, 0, 0)) {
-    this.m = m;
-    this.pos = pos;
-    this.vel = vel;
-    this.f = f;
-    this.original_vel = vel;
-    this.original_pos = pos;
-  }
-
-  update(ts) {
-      ({ vel: this.vel, pos: this.pos } = symplectic_euler(this.pos, this.vel, this.f, this.m, ts));
-      if(this.pos[1] < 0) {
-        this.pos = this.original_pos;
-        this.vel = this.original_vel;
-      }
-  }
-}
-
 class Simulation {
-  constructor(particles=[], platforms=[], ts=1.0/60, g=vec3(0, -9.8, 0)) {
-    this.particles = particles;
+  constructor(platforms=[], ts=1.0/60, g=vec3(0, -9.8, 0)) {
     this.platforms = platforms;
+    this.bernard = null;
     this.ts = ts;
     this.g = g; // should only set the y direction
   }
 
-  create_particle(m, x, y, z, vx, vy, vz) {
-    this.particles.push(new Particle(m, vec3(x, y, z), vec3(vx, vy, vz)));
+  set_bernard(m, x, y, z, vx, vy, vz) {
+    this.bernard = new Bernard(m, vec3(x, y, z), vec3(vx, vy, vz));
   }
 
   create_platform(x, y, z, ks, kd, w, h) {
@@ -86,24 +61,16 @@ class Simulation {
   }
 
   update() {
-    this.particles.forEach((particle) => {
-      particle.f = get_forces(this.g, this.platforms, particle);
-    });
-
-    this.particles.forEach((particle) => {
-      particle.update(this.ts);
-    })
+    this.bernard.f = get_forces(this.g, this.platforms, this.bernard);
+    this.bernard.update(this.ts);
   }
 
   draw(webgl_manager, uniforms, shapes, materials) {
-    const blue = color(0, 0, 1, 1);
     const red = color(1, 0, 0, 1);
 
-    this.particles.forEach((particle) => {
-      const pos = particle.pos;
-      const model_transform = Mat4.scale(0.2, 0.2, 0.2).pre_multiply(Mat4.translation(pos[0], pos[1], pos[2]));
-      shapes.ball.draw(webgl_manager, uniforms, model_transform, { ...materials.plastic, color: blue });
-    });
+    const b_pos = this.bernard.pos;
+    const b_transform =  Mat4.scale(0.5, 0.5, 0.5).pre_multiply(Mat4.translation(b_pos[0], b_pos[1], b_pos[2]));
+    this.bernard.draw(webgl_manager, uniforms, shapes, materials, b_transform);
 
     this.platforms.forEach((platform) => {
       // !!! Draw platform
@@ -152,7 +119,7 @@ const Part_two_spring_base = defs.Part_two_spring_base =
         this.ball_radius = 0.25;
 
         this.simulation = new Simulation();
-        this.simulation.create_particle(1, 2, 4, 2, 1, 0, 1);
+        this.simulation.set_bernard(1, 2, 4, 2, 1, 0, 1);
         this.simulation.create_platform(2.5, 1, 2.5, 12500, 10);
         this.simulation.create_platform(5, 2, 5, 12500, 10);
         this.run = false;
