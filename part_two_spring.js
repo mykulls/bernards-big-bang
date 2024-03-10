@@ -70,7 +70,7 @@ class Simulation {
 
     const b_pos = this.bernard.pos;
     const b_transform =  Mat4.scale(0.5, 0.5, 0.5).pre_multiply(Mat4.translation(b_pos[0], b_pos[1], b_pos[2]));
-    this.bernard.draw(webgl_manager, uniforms, shapes, materials, b_transform);
+    this.bernard.draw(webgl_manager, uniforms, materials, b_transform);
 
     this.platforms.forEach((platform) => {
       // !!! Draw platform
