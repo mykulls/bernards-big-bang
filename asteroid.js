@@ -236,18 +236,20 @@ export class Asteroid extends Simulation {                                      
 
     render_animation(caller) {                                 // display(): Draw everything else in the scene besides the moving bodies.
         super.render_animation(caller);
+        const b_pos = this.bernard.pos;
 
         if (!caller.controls) {
             this.animated_children.push(caller.controls = new defs.Movement_Controls({ uniforms: this.uniforms }));
             caller.controls.add_mouse_controls(caller.canvas);
-            Shader.assign_camera(Mat4.translation(0, 0, -50), this.uniforms);    // Locate the camera here (inverted matrix).
         }
+        // Set camera to point relative to Bernard's y position
+        Shader.assign_camera(Mat4.translation(-b_pos[0], -b_pos[1]-5, -50), this.uniforms);    // Locate the camera here (inverted matrix).
         this.uniforms.projection_transform = Mat4.perspective(Math.PI / 4, caller.width / caller.height, 1, 500);
-        this.uniforms.lights = [defs.Phong_Shader.light_source(vec4(-5, 0, -10, 1), color(1, 1, 1, 1), 100000)];
+        this.uniforms.lights = [defs.Phong_Shader.light_source(vec4(0, 69, 100, 1), color(1, 1, 1, 1), 100000)];    // Slight top angle fill light
 
         // Draw the ground:
         this.shapes.square.draw(caller, this.uniforms, Mat4.translation(0, -10, 0)
-            .times(Mat4.rotation(Math.PI / 2, 1, 0, 0)).times(Mat4.scale(50, 50, 1)),
+            .times(Mat4.rotation(Math.PI / 2, 1, 0, 0)).times(Mat4.scale(100, 100, 1)),
             { ...this.material });
 
         // Draw the platform
@@ -256,7 +258,6 @@ export class Asteroid extends Simulation {                                      
             { ...this.platform_material });
 
         // Draw Bernard
-        const b_pos = this.bernard.pos;
         const b_transform =  Mat4.scale(1, 1, 1).pre_multiply(Mat4.translation(b_pos[0], b_pos[1], b_pos[2]));
         this.bernard.draw(caller, this.uniforms, this.materials, b_transform);
 
@@ -265,8 +266,5 @@ export class Asteroid extends Simulation {                                      
         this.shapes.wall.draw(caller, this.uniforms, model_transform.times(Mat4.rotation(Math.PI / 2, 0, 1, 0)).times(Mat4.translation(0, 0, -1)), { ...this.right_space_material });
         this.shapes.wall.draw(caller, this.uniforms, model_transform.times(Mat4.rotation(-Math.PI / 2, 0, 1, 0)).times(Mat4.translation(0, 0, -1)), { ...this.left_space_material });
         this.shapes.wall.draw(caller, this.uniforms, model_transform.times(Mat4.rotation(Math.PI, 0, 1, 0)).times(Mat4.translation(0, 0, -1)), { ...this.back_space_material });
-    }
-    render_explanation() {
-        this.document_region.innerHTML += `<p>Replace with text.</p>`;
     }
 }

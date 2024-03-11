@@ -131,22 +131,16 @@ const Part_two_spring_base = defs.Part_two_spring_base =
         // subclass of this Scene.  Here, the base class's display only does
         // some initial setup.
 
-        // Setup -- This part sets up the scene's overall camera matrix, projection matrix, and lights:
-        if( !caller.controls )
-        { this.animated_children.push( caller.controls = new defs.Movement_Controls( { uniforms: this.uniforms } ) );
-          caller.controls.add_mouse_controls( caller.canvas );
+        const b_pos = this.simulation.bernard.pos;
 
-          // Define the global camera and projection matrices, which are stored in shared_uniforms.  The camera
-          // matrix follows the usual format for transforms, but with opposite values (cameras exist as
-          // inverted matrices).  The projection matrix follows an unusual format and determines how depth is
-          // treated when projecting 3D points onto a plane.  The Mat4 functions perspective() or
-          // orthographic() automatically generate valid matrices for one.  The input arguments of
-          // perspective() are field of view, aspect ratio, and distances to the near plane and far plane.
-
-          // !!! Camera changed here
-          Shader.assign_camera( Mat4.look_at (vec3 (10, 10, 10), vec3 (0, 0, 0), vec3 (0, 1, 0)), this.uniforms );
+        if (!caller.controls) {
+            this.animated_children.push(caller.controls = new defs.Movement_Controls({ uniforms: this.uniforms }));
+            caller.controls.add_mouse_controls(caller.canvas);
+            // Set camera to point relative to Bernard's y position
+            Shader.assign_camera(Mat4.translation(0, -b_pos[1]-5, -50), this.uniforms);    // Locate the camera here (inverted matrix).
         }
-        this.uniforms.projection_transform = Mat4.perspective( Math.PI/4, caller.width/caller.height, 1, 100 );
+        this.uniforms.projection_transform = Mat4.perspective(Math.PI / 4, caller.width / caller.height, 1, 500);
+        this.uniforms.lights = [defs.Phong_Shader.light_source(vec4(0, 69, 100, 1), color(1, 1, 1, 1), 100000)];    // Slight top angle fill light
 
         // *** Lights: *** Values of vector or point lights.  They'll be consulted by
         // the shader when coloring shapes.  See Light's class definition for inputs.
@@ -197,7 +191,9 @@ export class Part_two_spring extends Part_two_spring_base
         // replace them with your own!  Notice the usage of the Mat4 functions
         // translation(), scale(), and rotation() to generate matrices, and the
         // function times(), which generates products of matrices.
-
+    const b_pos = this.simulation.bernard.pos;
+    Shader.assign_camera(Mat4.translation(-b_pos[0], -b_pos[1]-2.5, -b_pos[2]-20), this.uniforms);    // Locate the camera here (inverted matrix).
+    console.log(b_pos[1]);
     const blue = color( 0,0,1,1 ), yellow = color( 1,1,0,1 );
 
     const t = this.t = this.uniforms.animation_time/1000;
