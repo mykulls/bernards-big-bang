@@ -52,7 +52,7 @@ Object.assign (defs,
 
 // ******************** SELECT THE DEMO TO DISPLAY:
 
-let scenes = {1: Asteroid, 2: Part_two_spring, 3: Part_three_chain};
+let scenes = {1: Asteroid, 2: Part_two_spring, 3: Part_one_hermite};
 const scene_selector = (i) => scenes[i];
 
 const main_scene        = Asteroid; // default

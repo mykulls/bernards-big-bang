@@ -1,4 +1,6 @@
 import { tiny, defs } from './examples/common.js';
+import { Bernard } from './objects.js';
+
 
 // Pull these names into this module's scope for convenience:
 const { vec3, unsafe3, vec4, color, Mat4, Shape, Material, Shader, Texture, Component } = tiny;
@@ -75,7 +77,8 @@ export
 
 export
     const Simulation = defs.Simulation =
-        class Simulation extends Component {                                         // **Simulation** manages the stepping of simulation time.  Subclass it when making
+        class Simulation extends Component { 
+                                                    // **Simulation** manages the stepping of simulation time.  Subclass it when making
             // a Component that is a physics demo.  This technique is careful to totally decouple
             // the simulation from the frame rate (see below).
             time_accumulator = 0;
@@ -154,13 +157,21 @@ export class Asteroid extends Simulation {                                      
         this.shapes = { ...this.data.shapes };
         this.shapes.square = new defs.Square();
         this.shapes.platform = new defs.Cube();
+        const phong = new defs.Phong_Shader();
+        const tex_phong = new defs.Textured_Phong();
         const shader = new defs.Fake_Bump_Map(1);
         this.material = { shader, color: color(.4, .8, .4, 1), ambient: 0.4, specularity: 0 };
+        this.materials = {};
+        this.materials.plastic = { shader: phong, ambient: .2, diffusivity: 1, specularity: .5, color: color( .9,.5,.9,1 ) }
+        this.materials.metal   = { shader: phong, ambient: .2, diffusivity: 1, specularity:  1, color: color( .9,.5,.9,1 ) }
+        this.materials.rgb = { shader: tex_phong, ambient: .5, texture: new Texture( "assets/rgb.jpg" ) }
         this.platform_material = { shader, color: color(1, 0.5, 0.2, 1), ambient: 0.1, diffusivity: 0.9 };
         this.front_space_material = { shader, color: color(0, 0, 0, 1), ambient: 1, diffusivity: 0.1, specularity: 0.1, texture: new Texture("./assets/front.png", "LINEAR_MIPMAP_LINEAR") };
         this.left_space_material = { shader, color: color(0, 0, 0, 1), ambient: 1, diffusivity: 0.1, specularity: 0.1, texture: new Texture("./assets/left.png", "LINEAR_MIPMAP_LINEAR") };
         this.back_space_material = { shader, color: color(0, 0, 0, 1), ambient: 1, diffusivity: 0.1, specularity: 0.1, texture: new Texture("./assets/back.png", "LINEAR_MIPMAP_LINEAR") };
         this.right_space_material = { shader, color: color(0, 0, 0, 1), ambient: 1, diffusivity: 0.1, specularity: 0.1, texture: new Texture("./assets/right.png", "LINEAR_MIPMAP_LINEAR") };
+    
+        this.bernard = new Bernard(1, vec3(0, 10, 0), vec3(0, 0, 0));
     }
     random_color() {
         return {
@@ -225,18 +236,20 @@ export class Asteroid extends Simulation {                                      
 
     render_animation(caller) {                                 // display(): Draw everything else in the scene besides the moving bodies.
         super.render_animation(caller);
+        const b_pos = this.bernard.pos;
 
         if (!caller.controls) {
             this.animated_children.push(caller.controls = new defs.Movement_Controls({ uniforms: this.uniforms }));
             caller.controls.add_mouse_controls(caller.canvas);
-            Shader.assign_camera(Mat4.translation(0, 0, -50), this.uniforms);    // Locate the camera here (inverted matrix).
         }
+        // Set camera to point relative to Bernard's y position
+        Shader.assign_camera(Mat4.translation(-b_pos[0], -b_pos[1]-5, -50), this.uniforms);    // Locate the camera here (inverted matrix).
         this.uniforms.projection_transform = Mat4.perspective(Math.PI / 4, caller.width / caller.height, 1, 500);
-        this.uniforms.lights = [defs.Phong_Shader.light_source(vec4(-5, 0, -10, 1), color(1, 1, 1, 1), 100000)];
+        this.uniforms.lights = [defs.Phong_Shader.light_source(vec4(0, 69, 100, 1), color(1, 1, 1, 1), 100000)];    // Slight top angle fill light
 
         // Draw the ground:
         this.shapes.square.draw(caller, this.uniforms, Mat4.translation(0, -10, 0)
-            .times(Mat4.rotation(Math.PI / 2, 1, 0, 0)).times(Mat4.scale(50, 50, 1)),
+            .times(Mat4.rotation(Math.PI / 2, 1, 0, 0)).times(Mat4.scale(100, 100, 1)),
             { ...this.material });
 
         // Draw the platform
@@ -244,13 +257,14 @@ export class Asteroid extends Simulation {                                      
             Mat4.translation(0, 5, 0).times(Mat4.scale(10, 1, 5)),
             { ...this.platform_material });
 
+        // Draw Bernard
+        const b_transform =  Mat4.scale(1, 1, 1).pre_multiply(Mat4.translation(b_pos[0], b_pos[1], b_pos[2]));
+        this.bernard.draw(caller, this.uniforms, this.materials, b_transform);
+
         let model_transform = Mat4.identity().times(Mat4.scale(400, 400, 400));
         this.shapes.wall.draw(caller, this.uniforms, model_transform.times(Mat4.translation(0, 0, -1)), { ...this.front_space_material });
         this.shapes.wall.draw(caller, this.uniforms, model_transform.times(Mat4.rotation(Math.PI / 2, 0, 1, 0)).times(Mat4.translation(0, 0, -1)), { ...this.right_space_material });
         this.shapes.wall.draw(caller, this.uniforms, model_transform.times(Mat4.rotation(-Math.PI / 2, 0, 1, 0)).times(Mat4.translation(0, 0, -1)), { ...this.left_space_material });
         this.shapes.wall.draw(caller, this.uniforms, model_transform.times(Mat4.rotation(Math.PI, 0, 1, 0)).times(Mat4.translation(0, 0, -1)), { ...this.back_space_material });
-    }
-    render_explanation() {
-        this.document_region.innerHTML += `<p>Replace with text.</p>`;
     }
 }

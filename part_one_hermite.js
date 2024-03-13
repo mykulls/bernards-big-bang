@@ -1,7 +1,10 @@
 import {tiny, defs} from './examples/common.js';
+import { Body } from './collision.js';
+import { Star, Bernard } from './objects.js';
 
 // Pull these names into this module's scope for convenience:
-const { vec3, vec4, color, Mat4, Shape, Material, Shader, Texture, Component } = tiny;
+const { vec3, vec4, color, hex_color, Mat4, Shape, Material, Shader, Texture, Component } = tiny;
+
 
 // TODO: you should implement the required classes here or in another file.
 
@@ -41,9 +44,14 @@ const Part_one_hermite_base = defs.Part_one_hermite_base =
         this.materials.rgb = { shader: tex_phong, ambient: .5, texture: new Texture( "assets/rgb.jpg" ) }
 
         this.ball_location = vec3(1, 1, 1);
+        this.ball_location2 = vec3(1, 1, 1.5);
         this.ball_radius = 0.25;
 
-        // TODO: you should create a Spline class instance
+        this.collider = { intersect_test: Body.intersect_sphere, points: new defs.Subdivision_Sphere(1), leeway: .5 }
+        
+        // INSTANTIATE OUR OBJECTS HERE
+        this.star = new Star(0.5); //parameter scales star
+        this.bernard = new Bernard(0.5); //parameter scales bernard
       }
 
       render_animation( caller )
@@ -80,7 +88,7 @@ const Part_one_hermite_base = defs.Part_one_hermite_base =
         this.uniforms.lights = [ defs.Phong_Shader.light_source( light_position, color( 1,1,1,1 ), 1000000 ) ];
 
         // draw axis arrows.
-        this.shapes.axis.draw(caller, this.uniforms, Mat4.identity(), this.materials.rgb);
+        //this.shapes.axis.draw(caller, this.uniforms, Mat4.identity(), this.materials.rgb);
       }
     }
 
@@ -93,6 +101,25 @@ export class Part_one_hermite extends Part_one_hermite_base
                                                      // the shapes.  We isolate that code so it can be experimented with on its own.
                                                      // This gives you a very small code sandbox for editing a simple scene, and for
                                                      // experimenting with matrix transformations.
+
+  checkCollisionWithPlatform() {
+      // Get the position of Bernard
+      const bernardPosition = this.bernard.pos;
+
+      // Define the bounding box of the platform
+      const platformBounds = {
+        minX: this.ball_location2[0] - 2.5 * 5, maxX: this.ball_location2[0] + 2.5 * 5,
+        minY: this.ball_location2[1] - (0.45 + 0.05), maxY: this.ball_location2[1] + (0.45 + 0.05),
+        minZ: this.ball_location2[2] - 2.5 * 5, maxZ: this.ball_location2[2] + 2.5 * 5
+    };
+
+      // Check if Bernard's position is within the bounds of the platform
+      if (bernardPosition[0] >= platformBounds.minX && bernardPosition[0] <= platformBounds.maxX &&
+          bernardPosition[1] >= platformBounds.minY && bernardPosition[1] <= platformBounds.maxY &&
+          bernardPosition[2] >= platformBounds.minZ && bernardPosition[2] <= platformBounds.maxZ) {
+          console.log("Bernard collided with platform!");
+      }
+  }
   render_animation( caller )
   {                                                // display():  Called once per frame of animation.  For each shape that you want to
     // appear onscreen, place a .draw() call for it inside.  Each time, pass in a
@@ -121,18 +148,27 @@ export class Part_one_hermite extends Part_one_hermite_base
 
     const blue = color( 0,0,1,1 ), yellow = color( 1,0.7,0,1 );
 
-    const t = this.t = this.uniforms.animation_time/1000;
+    const t = this.t = this.uniforms.animation_time/1000; 
 
     // !!! Draw ground
-    let floor_transform = Mat4.translation(0, 0, 0).times(Mat4.scale(10, 0.01, 10));
-    this.shapes.box.draw( caller, this.uniforms, floor_transform, { ...this.materials.plastic, color: yellow } );
+   // let floor_transform = Mat4.translation(0, 0, 0).times(Mat4.scale(10, 0.01, 10));
+   // this.shapes.box.draw( caller, this.uniforms, floor_transform, { ...this.materials.plastic, color: yellow } );
 
-    // !!! Draw ball (for reference)
+    // // !!! Draw ball (for reference)
     let ball_transform = Mat4.translation(this.ball_location[0], this.ball_location[1], this.ball_location[2])
         .times(Mat4.scale(this.ball_radius, this.ball_radius, this.ball_radius));
-    this.shapes.ball.draw( caller, this.uniforms, ball_transform, { ...this.materials.metal, color: blue } );
+    // this.shapes.ball.draw( caller, this.uniforms, ball_transform, { ...this.materials.metal, color: blue } );
 
-    // TODO: you should draw spline here.
+    // DRAW OBJECTS HERE
+    //this.star.draw(caller, this.uniforms, this.shapes, this.materials);
+    this.bernard.draw(caller, this.uniforms, this.shapes, this.materials, this.bernard.pos[0], this.bernard.pos[1], this.bernard.pos[2]);
+
+    let platform_transform = Mat4.translation(this.ball_location2[0], this.ball_location2[1], this.ball_location2[2])
+    .times(Mat4.scale(2.5, 0.05 * 2, 5)); // Scale the box to match the platform bounds
+this.shapes.box.draw(caller, this.uniforms, platform_transform, { ...this.materials.plastic, color: yellow });
+
+    this.checkCollisionWithPlatform();
+
   }
 
   render_controls()
@@ -147,6 +183,10 @@ export class Part_one_hermite extends Part_one_hermite_base
     this.key_triggered_button( "Load", [], this.load_spline );
     this.new_line();
     this.key_triggered_button( "Export", [], this.export_spline );
+    this.new_line();
+    this.key_triggered_button( "move left", ["j"], () => this.bernard.move_left());
+    this.new_line();
+    this.key_triggered_button( "move right", ["l"], () => this.bernard.move_right());
     this.new_line();
 
     /* Some code for your reference

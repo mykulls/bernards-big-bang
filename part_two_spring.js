@@ -1,9 +1,84 @@
 import {tiny, defs} from './examples/common.js';
+import { Bernard } from './objects.js';
+
 
 // Pull these names into this module's scope for convenience:
 const { vec3, vec4, color, Mat4, Shape, Material, Shader, Texture, Component } = tiny;
 
-// TODO: you should implement the required classes here or in another file.
+function platform_forces(platforms, pos, vel) {
+  let f_n = vec3(0, 0, 0);
+  const platform_n = vec3(0, 1, 0);
+
+  // loop through all platforms, return once you find one that the particle intersects with or if none intersect
+  for(const platform of platforms) {
+    const signed_dist = pos.minus(platform.pos).dot(platform_n);
+
+    if(signed_dist < 0 &&
+       pos[0] < platform.pos[0] + platform.w &&
+       pos[0] > platform.pos[0] - platform.w &&
+       pos[2] < platform.pos[2] + platform.h &&
+       pos[2] > platform.pos[2] - platform.h) { // particle below ground and within platform
+      const platform_fric_dir = vel.times(-1).normalized();
+      const spring_f = platform_n.times(-signed_dist).times(platform.ks);
+      const damper_f = platform_fric_dir.times(vel.dot(platform_fric_dir)).times(platform.kd);
+      f_n = spring_f.minus(damper_f);
+      break;
+    }
+  }
+
+  return f_n;
+}
+
+function get_forces(g, platforms, particle) {
+  const { m, pos, vel } = particle;
+  return g.times(m).plus(platform_forces(platforms, pos, vel));
+}
+
+class Platform {
+  constructor(pos=vec3(1, 1, 1), ks=0, kd=0, w=1, h=1) {
+    this.pos = pos;
+    this.ks = ks;
+    this.kd = kd;
+    this.w = w;
+    this.h = h;
+  }
+}
+
+class Simulation {
+  constructor(platforms=[], ts=1.0/60, g=vec3(0, -9.8, 0)) {
+    this.platforms = platforms;
+    this.bernard = null;
+    this.ts = ts;
+    this.g = g; // should only set the y direction
+  }
+
+  set_bernard(m, x, y, z, vx, vy, vz) {
+    this.bernard = new Bernard(m, vec3(x, y, z), vec3(vx, vy, vz));
+  }
+
+  create_platform(x, y, z, ks, kd, w, h) {
+    this.platforms.push(new Platform(vec3(x, y, z), ks, kd, w, h));
+  }
+
+  update() {
+    this.bernard.f = get_forces(this.g, this.platforms, this.bernard);
+    this.bernard.update(this.ts);
+  }
+
+  draw(webgl_manager, uniforms, shapes, materials) {
+    const red = color(1, 0, 0, 1);
+
+    const b_pos = this.bernard.pos;
+    const b_transform =  Mat4.scale(0.5, 0.5, 0.5).pre_multiply(Mat4.translation(b_pos[0], b_pos[1], b_pos[2]));
+    this.bernard.draw(webgl_manager, uniforms, materials, b_transform);
+
+    this.platforms.forEach((platform) => {
+      // !!! Draw platform
+      const p1_t = Mat4.translation(platform.pos[0], platform.pos[1], platform.pos[2]).times(Mat4.scale(platform.w, 0.1, platform.h));
+      shapes.box.draw(webgl_manager, uniforms, p1_t, { ...materials.plastic, color: red } );
+    })
+  }
+}
 
 export
 const Part_two_spring_base = defs.Part_two_spring_base =
@@ -43,7 +118,11 @@ const Part_two_spring_base = defs.Part_two_spring_base =
         this.ball_location = vec3(1, 1, 1);
         this.ball_radius = 0.25;
 
-        // TODO: you should create the necessary shapes
+        this.simulation = new Simulation();
+        this.simulation.set_bernard(1, 2, 4, 2, 1, 0, 1);
+        this.simulation.create_platform(2.5, 1, 2.5, 12500, 10);
+        this.simulation.create_platform(5, 2, 5, 12500, 10);
+        this.run = false;
       }
 
       render_animation( caller )
@@ -52,22 +131,16 @@ const Part_two_spring_base = defs.Part_two_spring_base =
         // subclass of this Scene.  Here, the base class's display only does
         // some initial setup.
 
-        // Setup -- This part sets up the scene's overall camera matrix, projection matrix, and lights:
-        if( !caller.controls )
-        { this.animated_children.push( caller.controls = new defs.Movement_Controls( { uniforms: this.uniforms } ) );
-          caller.controls.add_mouse_controls( caller.canvas );
+        const b_pos = this.simulation.bernard.pos;
 
-          // Define the global camera and projection matrices, which are stored in shared_uniforms.  The camera
-          // matrix follows the usual format for transforms, but with opposite values (cameras exist as
-          // inverted matrices).  The projection matrix follows an unusual format and determines how depth is
-          // treated when projecting 3D points onto a plane.  The Mat4 functions perspective() or
-          // orthographic() automatically generate valid matrices for one.  The input arguments of
-          // perspective() are field of view, aspect ratio, and distances to the near plane and far plane.
-
-          // !!! Camera changed here
-          Shader.assign_camera( Mat4.look_at (vec3 (10, 10, 10), vec3 (0, 0, 0), vec3 (0, 1, 0)), this.uniforms );
+        if (!caller.controls) {
+            this.animated_children.push(caller.controls = new defs.Movement_Controls({ uniforms: this.uniforms }));
+            caller.controls.add_mouse_controls(caller.canvas);
+            // Set camera to point relative to Bernard's y position
+            Shader.assign_camera(Mat4.translation(0, -b_pos[1]-5, -50), this.uniforms);    // Locate the camera here (inverted matrix).
         }
-        this.uniforms.projection_transform = Mat4.perspective( Math.PI/4, caller.width/caller.height, 1, 100 );
+        this.uniforms.projection_transform = Mat4.perspective(Math.PI / 4, caller.width / caller.height, 1, 500);
+        this.uniforms.lights = [defs.Phong_Shader.light_source(vec4(0, 69, 100, 1), color(1, 1, 1, 1), 100000)];    // Slight top angle fill light
 
         // *** Lights: *** Values of vector or point lights.  They'll be consulted by
         // the shader when coloring shapes.  See Light's class definition for inputs.
@@ -118,10 +191,14 @@ export class Part_two_spring extends Part_two_spring_base
         // replace them with your own!  Notice the usage of the Mat4 functions
         // translation(), scale(), and rotation() to generate matrices, and the
         // function times(), which generates products of matrices.
-
+    const b_pos = this.simulation.bernard.pos;
+    Shader.assign_camera(Mat4.translation(-b_pos[0], -b_pos[1]-2.5, -b_pos[2]-20), this.uniforms);    // Locate the camera here (inverted matrix).
+    console.log(b_pos[1]);
     const blue = color( 0,0,1,1 ), yellow = color( 1,1,0,1 );
 
     const t = this.t = this.uniforms.animation_time/1000;
+    const dt = this.dt = Math.min(1/60, this.uniforms.animation_delta_time/1000);
+    let t_sim = this.t_sim = t;
 
     // !!! Draw ground
     let floor_transform = Mat4.translation(0, 0, 0).times(Mat4.scale(10, 0.01, 10));
@@ -132,15 +209,20 @@ export class Part_two_spring extends Part_two_spring_base
         .times(Mat4.scale(this.ball_radius, this.ball_radius, this.ball_radius));
     this.shapes.ball.draw( caller, this.uniforms, ball_transform, { ...this.materials.metal, color: blue } );
 
-    // TODO: you should draw spline here.
+    if(this.run) {
+      const t_next = t_sim + dt;
+      for(; this.t_sim <= t_next; this.t_sim += this.simulation.ts) {
+        this.simulation.update();
+      }
+    }
+
+    this.simulation.draw(caller, this.uniforms, this.shapes, this.materials);
   }
 
   render_controls()
   {                                 // render_controls(): Sets up a panel of interactive HTML elements, including
     // buttons with key bindings for affecting this scene, and live info readouts.
-    this.control_panel.innerHTML += "Part Two:";
-    this.new_line();
-    this.key_triggered_button( "Config", [], this.parse_commands );
+    this.control_panel.innerHTML += "Platforms:";
     this.new_line();
     this.key_triggered_button( "Run", [], this.start );
     this.new_line();
@@ -169,13 +251,8 @@ export class Part_two_spring extends Part_two_spring_base
      */
   }
 
-  parse_commands() {
-    document.getElementById("output").value = "parse_commands";
-    //TODO
-  }
-
   start() { // callback for Run button
     document.getElementById("output").value = "start";
-    //TODO
+    this.run = !this.run;
   }
 }
