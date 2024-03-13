@@ -1,5 +1,6 @@
 import { tiny, defs } from './examples/common.js';
 import { Bernard } from './objects.js';
+import { Text_Demo } from './text.js';
 
 // Pull these names into this module's scope for convenience:
 const { vec3, unsafe3, vec4, color, Mat4, Shape, Material, Shader, Texture, Component } = tiny;
@@ -148,7 +149,6 @@ export
             }
         }
 
-
 export class Asteroid extends Simulation {                                           // ** Inertia_Demo** demonstration: This scene lets random initial momentums
     // carry several bodies until they fall due to gravity and bounce.
     init() {
@@ -171,6 +171,10 @@ export class Asteroid extends Simulation {                                      
         this.right_space_material = { shader, color: color(0, 0, 0, 1), ambient: 1, diffusivity: 0.1, specularity: 0.1, texture: new Texture("./assets/right.png", "LINEAR_MIPMAP_LINEAR") };
 
         this.bernard = new Bernard(1, vec3(0, 12, 0), vec3(0, 0, 0));
+
+        this.text = new Text_Demo();
+        this.display_ouch = false;
+        this.message_timer = 0;
     }
     random_color() {
         return {
@@ -234,6 +238,9 @@ export class Asteroid extends Simulation {                                      
             const z_collision = b.center[2] >= this.bernard.pos[2] - leeway && b.center[2] <= this.bernard.pos[2] + leeway;
 
             if (x_collision && y_collision && z_collision) {
+                this.display_ouch = true;
+                this.message_timer = 25;
+
                 const distance = Math.sqrt(
                     Math.pow(b.center[0] - this.bernard.pos[0], 2) +
                     Math.pow(b.center[1] - this.bernard.pos[1], 2) +
@@ -297,6 +304,16 @@ export class Asteroid extends Simulation {                                      
         this.shapes.platform.draw(caller, this.uniforms,
             Mat4.translation(0, 5, 0).times(Mat4.scale(10, 1, 5)),
             { ...this.platform_material });
+
+        // Display Ouch! message when asteroid hits Bernard
+        if (this.display_ouch) {
+            this.text.render_animation(caller);
+            this.message_timer -= 1;
+            if (this.message_timer < 0) {
+                this.message_timer = 0;
+                this.display_ouch = false;
+            }
+        }
 
         // Draw Bernard
         const b_transform = Mat4.scale(2, 2, 2).pre_multiply(Mat4.translation(b_pos[0], b_pos[1], b_pos[2]));
