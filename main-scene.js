@@ -29,7 +29,7 @@ import {Transforms_Sandbox_Base, Transforms_Sandbox}
     from "./examples/transforms-sandbox.js";
 
 import {Part_one_hermite} from "./part_one_hermite.js";
-import {Part_two_spring} from "./part_two_spring.js";
+import {main} from "./main.js";
 import {Part_three_chain} from "./part_three_chain.js";
 import {Asteroid} from "./asteroid.js";
 
@@ -45,17 +45,16 @@ Object.assign (defs,
     {Text_Demo},
     {Transforms_Sandbox_Base, Transforms_Sandbox},
     {Part_one_hermite},
-    {Part_two_spring},
     {Part_three_chain},
     {Asteroid}
 );
 
 // ******************** SELECT THE DEMO TO DISPLAY:
 
-let scenes = {1: Asteroid, 2: Part_two_spring, 3: Part_one_hermite};
+let scenes = {1: main};
 const scene_selector = (i) => scenes[i];
 
-const main_scene        = Asteroid; // default
+const main_scene        = main; // default
 const additional_scenes = [];
 
 export {main_scene, scene_selector, additional_scenes, defs};

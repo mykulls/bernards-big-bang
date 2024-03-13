@@ -72,7 +72,7 @@ class Particle {
   
     update(ts) {
         ({ vel: this.vel, pos: this.pos } = symplectic_euler(this.pos, this.vel, this.f, this.m, ts));
-        if(this.pos[1] < 0) {
+        if(this.pos[1] < -10) {
           this.pos = this.original_pos;
           this.vel = this.original_vel;
         }

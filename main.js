@@ -9,20 +9,22 @@ function platform_forces(platforms, pos, vel) {
   let f_n = vec3(0, 0, 0);
   const platform_n = vec3(0, 1, 0);
 
-  // loop through all platforms, return once you find one that the particle intersects with or if none intersect
   for(const platform of platforms) {
     const signed_dist = pos.minus(platform.pos).dot(platform_n);
 
     if(signed_dist < 0 &&
-       pos[0] < platform.pos[0] + platform.w &&
-       pos[0] > platform.pos[0] - platform.w &&
-       pos[2] < platform.pos[2] + platform.h &&
-       pos[2] > platform.pos[2] - platform.h) { // particle below ground and within platform
-      const platform_fric_dir = vel.times(-1).normalized();
-      const spring_f = platform_n.times(-signed_dist).times(platform.ks);
-      const damper_f = platform_fric_dir.times(vel.dot(platform_fric_dir)).times(platform.kd);
-      f_n = spring_f.minus(damper_f);
-      break;
+        pos[2] < platform.pos[2] + platform.h &&
+        pos[2] > platform.pos[2] - platform.h) { // particle below ground and within platform
+      
+      if(pos[0] >= platform.pos[0] - platform.w && pos[0] <= platform.pos[0] + platform.w) { // particle intersects from top
+        const platform_fric_dir = vel.times(-1).normalized();
+        const spring_f = platform_n.times(-signed_dist).times(platform.ks);
+        const damper_f = platform_fric_dir.times(vel.dot(platform_fric_dir)).times(platform.kd);
+        f_n = spring_f.minus(damper_f);
+        break;
+      } else { // particle intersects from left or right side, no force
+        break;
+      }
     }
   }
 
@@ -83,31 +85,18 @@ class Simulation {
 export
 const Part_two_spring_base = defs.Part_two_spring_base =
     class Part_two_spring_base extends Component
-    {                                          // **My_Demo_Base** is a Scene that can be added to any display canvas.
-                                               // This particular scene is broken up into two pieces for easier understanding.
-                                               // The piece here is the base class, which sets up the machinery to draw a simple
-                                               // scene demonstrating a few concepts.  A subclass of it, Part_one_hermite,
-                                               // exposes only the display() method, which actually places and draws the shapes,
-                                               // isolating that code so it can be experimented with on its own.
+    {                                     
       init()
       {
         console.log("init")
 
         // constructor(): Scenes begin by populating initial values like the Shapes and Materials they'll need.
         this.hover = this.swarm = false;
-        // At the beginning of our program, load one of each of these shape
-        // definitions onto the GPU.  NOTE:  Only do this ONCE per shape it
-        // would be redundant to tell it again.  You should just re-use the
-        // one called "box" more than once in display() to draw multiple cubes.
-        // Don't define more than one blueprint for the same thing here.
+
         this.shapes = { 'box'  : new defs.Cube(),
           'ball' : new defs.Subdivision_Sphere( 4 ),
           'axis' : new defs.Axis_Arrows() };
 
-        // *** Materials: ***  A "material" used on individual shapes specifies all fields
-        // that a Shader queries to light/color it properly.  Here we use a Phong shader.
-        // We can now tweak the scalar coefficients from the Phong lighting formulas.
-        // Expected values can be found listed in Phong_Shader::update_GPU().
         const phong = new defs.Phong_Shader();
         const tex_phong = new defs.Textured_Phong();
         this.materials = {};
@@ -126,71 +115,35 @@ const Part_two_spring_base = defs.Part_two_spring_base =
       }
 
       render_animation( caller )
-      {                                                // display():  Called once per frame of animation.  We'll isolate out
-        // the code that actually draws things into Part_one_hermite, a
-        // subclass of this Scene.  Here, the base class's display only does
-        // some initial setup.
-
+      {                                             
         const b_pos = this.simulation.bernard.pos;
 
         if (!caller.controls) {
             this.animated_children.push(caller.controls = new defs.Movement_Controls({ uniforms: this.uniforms }));
             caller.controls.add_mouse_controls(caller.canvas);
-            // Set camera to point relative to Bernard's y position
             Shader.assign_camera(Mat4.translation(0, -b_pos[1]-5, -50), this.uniforms);    // Locate the camera here (inverted matrix).
         }
         this.uniforms.projection_transform = Mat4.perspective(Math.PI / 4, caller.width / caller.height, 1, 500);
         this.uniforms.lights = [defs.Phong_Shader.light_source(vec4(0, 69, 100, 1), color(1, 1, 1, 1), 100000)];    // Slight top angle fill light
 
-        // *** Lights: *** Values of vector or point lights.  They'll be consulted by
-        // the shader when coloring shapes.  See Light's class definition for inputs.
         const t = this.t = this.uniforms.animation_time/1000;
         const angle = Math.sin( t );
 
-        // const light_position = Mat4.rotation( angle,   1,0,0 ).times( vec4( 0,-1,1,0 ) ); !!!
-        // !!! Light changed here
         const light_position = vec4(20 * Math.cos(angle), 20,  20 * Math.sin(angle), 1.0);
         this.uniforms.lights = [ defs.Phong_Shader.light_source( light_position, color( 1,1,1,1 ), 1000000 ) ];
 
-        // draw axis arrows.
         this.shapes.axis.draw(caller, this.uniforms, Mat4.identity(), this.materials.rgb);
       }
     }
 
 
-export class Part_two_spring extends Part_two_spring_base
-{                                                    // **Part_one_hermite** is a Scene object that can be added to any display canvas.
-                                                     // This particular scene is broken up into two pieces for easier understanding.
-                                                     // See the other piece, My_Demo_Base, if you need to see the setup code.
-                                                     // The piece here exposes only the display() method, which actually places and draws
-                                                     // the shapes.  We isolate that code so it can be experimented with on its own.
-                                                     // This gives you a very small code sandbox for editing a simple scene, and for
-                                                     // experimenting with matrix transformations.
+export class main extends Part_two_spring_base
+{                                                  
   render_animation( caller )
-  {                                                // display():  Called once per frame of animation.  For each shape that you want to
-    // appear onscreen, place a .draw() call for it inside.  Each time, pass in a
-    // different matrix value to control where the shape appears.
-
-    // Variables that are in scope for you to use:
-    // this.shapes.box:   A vertex array object defining a 2x2x2 cube.
-    // this.shapes.ball:  A vertex array object defining a 2x2x2 spherical surface.
-    // this.materials.metal:    Selects a shader and draws with a shiny surface.
-    // this.materials.plastic:  Selects a shader and draws a more matte surface.
-    // this.lights:  A pre-made collection of Light objects.
-    // this.hover:  A boolean variable that changes when the user presses a button.
-    // shared_uniforms:  Information the shader needs for drawing.  Pass to draw().
-    // caller:  Wraps the WebGL rendering context shown onscreen.  Pass to draw().
-
+  {                                              
     // Call the setup code that we left inside the base class:
     super.render_animation( caller );
 
-    /**********************************
-     Start coding down here!!!!
-     **********************************/
-        // From here on down it's just some example shapes drawn for you -- freely
-        // replace them with your own!  Notice the usage of the Mat4 functions
-        // translation(), scale(), and rotation() to generate matrices, and the
-        // function times(), which generates products of matrices.
     const b_pos = this.simulation.bernard.pos;
     Shader.assign_camera(Mat4.translation(-b_pos[0], -b_pos[1]-2.5, -b_pos[2]-20), this.uniforms);    // Locate the camera here (inverted matrix).
     console.log(b_pos[1]);
@@ -226,29 +179,6 @@ export class Part_two_spring extends Part_two_spring_base
     this.new_line();
     this.key_triggered_button( "Run", [], this.start );
     this.new_line();
-
-    /* Some code for your reference
-    this.key_triggered_button( "Copy input", [ "c" ], function() {
-      let text = document.getElementById("input").value;
-      console.log(text);
-      document.getElementById("output").value = text;
-    } );
-    this.new_line();
-    this.key_triggered_button( "Relocate", [ "r" ], function() {
-      let text = document.getElementById("input").value;
-      const words = text.split(' ');
-      if (words.length >= 3) {
-        const x = parseFloat(words[0]);
-        const y = parseFloat(words[1]);
-        const z = parseFloat(words[2]);
-        this.ball_location = vec3(x, y, z)
-        document.getElementById("output").value = "success";
-      }
-      else {
-        document.getElementById("output").value = "invalid input";
-      }
-    } );
-     */
   }
 
   start() { // callback for Run button
