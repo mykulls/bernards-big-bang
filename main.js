@@ -179,6 +179,10 @@ export class main extends Part_two_spring_base
     this.new_line();
     this.key_triggered_button( "Run", [], this.start );
     this.new_line();
+    this.key_triggered_button( "move left", ["j"], () => this.simulation.bernard.move_left());
+    this.new_line();
+    this.key_triggered_button( "move right", ["l"], () => this.simulation.bernard.move_right());
+    this.new_line();
   }
 
   start() { // callback for Run button

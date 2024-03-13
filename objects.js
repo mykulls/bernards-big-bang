@@ -90,11 +90,13 @@ export class Bernard extends Particle {
     }
     move_left = () => {
         this.pos[0] -= 0.25;
+        //this.f -= 0.25;
         console.log(this.pos);
     }
 
     move_right = () => {
         this.pos[0] += 0.25;
+        //this.f += 0.25;
         console.log(this.pos);
     }
 
