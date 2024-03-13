@@ -1,6 +1,6 @@
 import {tiny, defs} from './examples/common.js';
-import { Bernard } from './objects.js';
-
+import { Bernard, Star } from './objects.js';
+import { Curve_Shape, Spline, Hermite_Spline } from './splines.js';
 
 // Pull these names into this module's scope for convenience:
 const { vec3, vec4, color, Mat4, Shape, Material, Shader, Texture, Component } = tiny;
@@ -52,6 +52,9 @@ class Simulation {
     this.bernard = null;
     this.ts = ts;
     this.g = g; // should only set the y direction
+    this.num_splines = 20;
+    this.curve_pos_list = [];
+    this.star_list = [];
   }
 
   set_bernard(m, x, y, z, vx, vy, vz) {
@@ -62,9 +65,18 @@ class Simulation {
     this.platforms.push(new Platform(vec3(x, y, z), ks, kd, w, h));
   }
 
+  create_stars(){
+    for(let i = 0; i < this.num_splines; i++){
+      this.star_list[i] = new Star(0.5);
+    }
+  }
+
   update() {
     this.bernard.f = get_forces(this.g, this.platforms, this.bernard);
     this.bernard.update(this.ts);
+    for(let i = 0; i<this.num_splines; i++){
+      this.star_list[i].pos = this.curve_pos_list[i];
+    }
   }
 
   draw(webgl_manager, uniforms, shapes, materials) {
@@ -79,6 +91,11 @@ class Simulation {
       const p1_t = Mat4.translation(platform.pos[0], platform.pos[1], platform.pos[2]).times(Mat4.scale(platform.w, 0.1, platform.h));
       shapes.box.draw(webgl_manager, uniforms, p1_t, { ...materials.plastic, color: red } );
     })
+
+    //draw stars
+    for(let i = 0; i < this.num_splines; i++){
+      this.star_list[i].draw(webgl_manager, uniforms, shapes, materials);
+    }
   }
 }
 
@@ -107,11 +124,33 @@ const Part_two_spring_base = defs.Part_two_spring_base =
         this.ball_location = vec3(1, 1, 1);
         this.ball_radius = 0.25;
 
+        //instantiate simulation
         this.simulation = new Simulation();
         this.simulation.set_bernard(1, 2, 4, 2, 1, 0, 1);
         this.simulation.create_platform(2.5, 1, 2.5, 12500, 10);
         this.simulation.create_platform(5, 2, 5, 12500, 10);
+        this.simulation.create_stars();
         this.run = false;
+        
+        //instantiate star/spline vars
+        this.spline_list = [];
+        this.curve_fn_list = [];
+        this.curve_list = [];
+        for (let i = 0; i < this.simulation.num_splines; i++){
+          // add spline to spline list
+          // let type = i % 3;
+          // if (i === 0) add_points 1
+          // else if (i === 1) add_points 2
+          // else if (i === 2) add_points 3
+          this.spline_list[i] = new Hermite_Spline();
+          this.spline_list[i].add_point( 10.0, 10.0+(i*10), 0.0, 10.0, -10.0, 0.0);
+          this.spline_list[i].add_point( 0.0,  5.0+(i*10), 0.0, 10.0, 10.0, 0.0);
+          this.spline_list[i].add_point( -10.0, 0.0+(i*10), 0.0, -10.0, 10.0, 0.0);
+          // add curve fn to curve fn list
+          this.curve_fn_list[i] = (t) => this.spline_list[i].get_position(t);
+          // add curve to curve list
+          this.curve_list[i] = new Curve_Shape(this.curve_fn_list[i], 100);
+        }
       }
 
       render_animation( caller )
@@ -162,13 +201,23 @@ export class main extends Part_two_spring_base
         .times(Mat4.scale(this.ball_radius, this.ball_radius, this.ball_radius));
     this.shapes.ball.draw( caller, this.uniforms, ball_transform, { ...this.materials.metal, color: blue } );
 
+    // draw the star curves
+    // for (let i = 0; i < this.simulation.num_splines; i++){
+    //   // this.curve_list[i].draw(caller, this.uniforms);
+    // }
+
     if(this.run) {
       const t_next = t_sim + dt;
       for(; this.t_sim <= t_next; this.t_sim += this.simulation.ts) {
+        // curves for stars
+        this.simulation.curve_pos_list = [];
+        for (let i = 0; i < this.simulation.num_splines; i++){
+          const curve_sample_t = 0.5 * (Math.sin(t_sim + 10*i)+1);
+          this.simulation.curve_pos_list[i] = this.spline_list[i].get_position(curve_sample_t);
+        }
         this.simulation.update();
       }
     }
-
     this.simulation.draw(caller, this.uniforms, this.shapes, this.materials);
   }
 
