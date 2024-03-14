@@ -170,14 +170,28 @@ export const Part_two_spring_base =
         this.curve_list = [];
         for (let i = 0; i < this.simulation.num_splines; i++){
           // add spline to spline list
-          // let type = i % 3;
-          // if (i === 0) add_points 1
-          // else if (i === 1) add_points 2
-          // else if (i === 2) add_points 3
-          this.spline_list[i] = new Hermite_Spline();
-          this.spline_list[i].add_point( 10.0, 10.0+(i*10), 0.0, 10.0, -10.0, 0.0);
-          this.spline_list[i].add_point( 0.0,  5.0+(i*10), 0.0, 10.0, 10.0, 0.0);
-          this.spline_list[i].add_point( -10.0, 0.0+(i*10), 0.0, -10.0, 10.0, 0.0);
+          let type = i % 3;
+          if (type === 0){
+            this.spline_list[i] = new Hermite_Spline();
+            this.spline_list[i].add_point( 20.0, 10.0+(i*10), 0.0, 20.0, -20.0, 0.0);
+            this.spline_list[i].add_point( 0.0,  5.0+(i*10), 0.0, -20.0, 20.0, 0.0);
+            this.spline_list[i].add_point( -20.0, 0.0+(i*10), 0.0, -20.0, 20.0, 0.0);
+          }
+          else if (type === 1){
+            this.spline_list[i] = new Hermite_Spline();
+            this.spline_list[i].add_point( -20.0, 5.0+(i*10), 0.0, 35.0, 0.0, 0.0);
+            this.spline_list[i].add_point( -10.0, 8.0+(i*10), 0.0, 35.0, 0.0, 0.0);
+            this.spline_list[i].add_point( 0.0, 5.0+(i*10), 0.0, 35.0, 0.0, 0.0);
+            this.spline_list[i].add_point( 10.0, 8.0+(i*10), 0.0, 35.0, 0.0, 0.0);
+            this.spline_list[i].add_point( 20.0, 5.0+(i*10), 0.0, 35.0, 0.0, 0.0);
+          }
+          else if (type === 2){
+            this.spline_list[i] = new Hermite_Spline();
+            this.spline_list[i].add_point( -20.0, 10.0+(i*10), 0.0, 20.0, -20.0, 0.0);
+            this.spline_list[i].add_point( 0.0,  5.0+(i*10), 0.0, 20.0, 20.0, 0.0);
+            this.spline_list[i].add_point( 20.0, 0.0+(i*10), 0.0, -20.0, 20.0, 0.0);
+          }
+
           // add curve fn to curve fn list
           this.curve_fn_list[i] = (t) => this.spline_list[i].get_position(t);
           // add curve to curve list
@@ -236,7 +250,7 @@ export class main extends Part_two_spring_base {
 
     // draw the star curves
     // for (let i = 0; i < this.simulation.num_splines; i++){
-    //   // this.curve_list[i].draw(caller, this.uniforms);
+    //   this.curve_list[i].draw(caller, this.uniforms);
     // }
 
     if(this.run) {
