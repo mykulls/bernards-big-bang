@@ -7,9 +7,9 @@ export function symplectic_euler(cur_pos, cur_vel, f, m, ts, moveDirection = "no
     // console.log(moveDirection);
     let deltaV = vec3(0, 0, 0);
     if (moveDirection === "left") {
-        deltaV = vec3(-1, 0, 0); // Adjust velocity for left movement
+        deltaV = vec3(-1.5, 0, 0); // Adjust velocity for left movement
     } else if (moveDirection === "right") {
-        deltaV = vec3(1, 0, 0); // Adjust velocity for right movement
+        deltaV = vec3(1.5, 0, 0); // Adjust velocity for right movement
     }
 
     const cur_acc = f.times(1.0 / m);
