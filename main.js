@@ -200,9 +200,6 @@ export const Part_two_spring_base =
         const t = this.t = this.uniforms.animation_time/1000;
         const angle = Math.sin( t );
 
-        const light_position = vec4(20 * Math.cos(angle), 20,  20 * Math.sin(angle), 1.0);
-        this.uniforms.lights = [ defs.Phong_Shader.light_source( light_position, color( 1,1,1,1 ), 1000000 ) ];
-
         this.shapes.axis.draw(caller, this.uniforms, Mat4.identity(), this.materials.rgb);
       }
     }
