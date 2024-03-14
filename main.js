@@ -1,5 +1,6 @@
-import { tiny, defs } from "./examples/common.js";
-import { Bernard, symplectic_euler } from "./objects.js";
+import {tiny, defs} from './examples/common.js';
+import { Bernard, Star, symplectic_euler } from './objects.js';
+import { Curve_Shape, Spline, Hermite_Spline } from './splines.js';
 
 // Pull these names into this module's scope for convenience:
 const { vec3, vec4, color, Mat4, Shape, Material, Shader, Texture, Component } =
@@ -56,6 +57,9 @@ class Simulation {
     this.ts = ts;
     this.movementFlag = "none";
     this.g = g; // should only set the y direction
+    this.num_splines = 20;
+    this.curve_pos_list = [];
+    this.star_list = [];
   }
 
   set_bernard(m, x, y, z, vx, vy, vz) {
@@ -66,7 +70,17 @@ class Simulation {
     this.platforms.push(new Platform(vec3(x, y, z), ks, kd, w, h));
   }
 
+  create_stars(){
+    for(let i = 0; i < this.num_splines; i++){
+      this.star_list[i] = new Star(0.5);
+    }
+  }
+
   update(movementFlag) {
+    for(let i = 0; i<this.num_splines; i++){
+      this.star_list[i].pos = this.curve_pos_list[i];
+    }
+
     this.bernard.f = get_forces(this.g, this.platforms, this.bernard);
     this.bernard.update(this.ts, movementFlag);
   }
@@ -82,16 +96,14 @@ class Simulation {
 
     this.platforms.forEach((platform) => {
       // !!! Draw platform
-      const p1_t = Mat4.translation(
-        platform.pos[0],
-        platform.pos[1],
-        platform.pos[2]
-      ).times(Mat4.scale(platform.w, 0.1, platform.h));
-      shapes.box.draw(webgl_manager, uniforms, p1_t, {
-        ...materials.plastic,
-        color: red,
-      });
-    });
+      const p1_t = Mat4.translation(platform.pos[0], platform.pos[1], platform.pos[2]).times(Mat4.scale(platform.w, 0.1, platform.h));
+      shapes.box.draw(webgl_manager, uniforms, p1_t, { ...materials.plastic, color: red } );
+    })
+
+    //draw stars
+    for(let i = 0; i < this.num_splines; i++){
+      this.star_list[i].draw(webgl_manager, uniforms, shapes, materials);
+    }
   }
 }
 
@@ -135,70 +147,62 @@ export const Part_two_spring_base =
       this.ball_location = vec3(1, 1, 1);
       this.ball_radius = 0.25;
 
-      this.simulation = new Simulation();
-      this.simulation.set_bernard(1, -3, 4, 2, 1, 0, 0);
-      this.simulation.create_platform(-5, 1, 2.5, 12500, 10);
-      this.simulation.create_platform(5, 2, 5, 12500, 10);
-      // this.simulation.set_bernard(1, 2, 4, 2, 1, 0, 1);
-      //   this.simulation.create_platform(2.5, 1, 2.5, 12500, 10);
-      //   this.simulation.create_platform(5, 2, 5, 12500, 10);
-      this.run = false;
-    }
-
-    render_animation(caller) {
-      const b_pos = this.simulation.bernard.pos;
-
-      if (!caller.controls) {
-        this.animated_children.push(
-          (caller.controls = new defs.Movement_Controls({
-            uniforms: this.uniforms,
-          }))
-        );
-        caller.controls.add_mouse_controls(caller.canvas);
-        Shader.assign_camera(
-          Mat4.translation(0, -b_pos[1] - 5, -50),
-          this.uniforms
-        ); // Locate the camera here (inverted matrix).
+        //instantiate simulation
+        this.simulation = new Simulation();
+        //set bernard from laura's changes
+        this.simulation.set_bernard(1, -3, 4, 2, 1, 0, 0);
+        this.simulation.create_platform(-5, 1, 2,5, 12500, 10);
+        this.simulation.create_platform(5, 2, 5, 12500, 10);
+        //set bernard from michael's changes
+        //this.simulation.set_bernard(1, 2, 4, 2, 1, 0, 1);
+        // this.simulation.create_platform(2.5, 1, 2.5, 12500, 10);
+        // this.simulation.create_platform(5, 2, 5, 12500, 10);
+        this.simulation.create_stars();
+        this.run = false;
+        
+        //instantiate star/spline vars
+        this.spline_list = [];
+        this.curve_fn_list = [];
+        this.curve_list = [];
+        for (let i = 0; i < this.simulation.num_splines; i++){
+          // add spline to spline list
+          // let type = i % 3;
+          // if (i === 0) add_points 1
+          // else if (i === 1) add_points 2
+          // else if (i === 2) add_points 3
+          this.spline_list[i] = new Hermite_Spline();
+          this.spline_list[i].add_point( 10.0, 10.0+(i*10), 0.0, 10.0, -10.0, 0.0);
+          this.spline_list[i].add_point( 0.0,  5.0+(i*10), 0.0, 10.0, 10.0, 0.0);
+          this.spline_list[i].add_point( -10.0, 0.0+(i*10), 0.0, -10.0, 10.0, 0.0);
+          // add curve fn to curve fn list
+          this.curve_fn_list[i] = (t) => this.spline_list[i].get_position(t);
+          // add curve to curve list
+          this.curve_list[i] = new Curve_Shape(this.curve_fn_list[i], 100);
+        }
       }
-      this.uniforms.projection_transform = Mat4.perspective(
-        Math.PI / 4,
-        caller.width / caller.height,
-        1,
-        500
-      );
-      this.uniforms.lights = [
-        defs.Phong_Shader.light_source(
-          vec4(0, 69, 100, 1),
-          color(1, 1, 1, 1),
-          100000
-        ),
-      ]; // Slight top angle fill light
 
-      const t = (this.t = this.uniforms.animation_time / 1000);
-      const angle = Math.sin(t);
+      render_animation( caller )
+      {                                             
+        const b_pos = this.simulation.bernard.pos;
 
-      const light_position = vec4(
-        20 * Math.cos(angle),
-        20,
-        20 * Math.sin(angle),
-        1.0
-      );
-      this.uniforms.lights = [
-        defs.Phong_Shader.light_source(
-          light_position,
-          color(1, 1, 1, 1),
-          1000000
-        ),
-      ];
+        if (!caller.controls) {
+            this.animated_children.push(caller.controls = new defs.Movement_Controls({ uniforms: this.uniforms }));
+            caller.controls.add_mouse_controls(caller.canvas);
+            Shader.assign_camera(Mat4.translation(0, -b_pos[1]-5, -50), this.uniforms);    // Locate the camera here (inverted matrix).
+        }
+        this.uniforms.projection_transform = Mat4.perspective(Math.PI / 4, caller.width / caller.height, 1, 500);
+        this.uniforms.lights = [defs.Phong_Shader.light_source(vec4(0, 69, 100, 1), color(1, 1, 1, 1), 100000)];    // Slight top angle fill light
 
-      this.shapes.axis.draw(
-        caller,
-        this.uniforms,
-        Mat4.identity(),
-        this.materials.rgb
-      );
+        const t = this.t = this.uniforms.animation_time/1000;
+        const angle = Math.sin( t );
+
+        const light_position = vec4(20 * Math.cos(angle), 20,  20 * Math.sin(angle), 1.0);
+        this.uniforms.lights = [ defs.Phong_Shader.light_source( light_position, color( 1,1,1,1 ), 1000000 ) ];
+
+        this.shapes.axis.draw(caller, this.uniforms, Mat4.identity(), this.materials.rgb);
+      }
     }
-  });
+  );
 
 export class main extends Part_two_spring_base {
   render_animation(caller) {
@@ -230,14 +234,24 @@ export class main extends Part_two_spring_base {
     //     .times(Mat4.scale(this.ball_radius, this.ball_radius, this.ball_radius));
     // this.shapes.ball.draw( caller, this.uniforms, ball_transform, { ...this.materials.metal, color: blue } );
 
-    if (this.run) {
+    // draw the star curves
+    // for (let i = 0; i < this.simulation.num_splines; i++){
+    //   // this.curve_list[i].draw(caller, this.uniforms);
+    // }
+
+    if(this.run) {
       const t_next = t_sim + dt;
-      for (; this.t_sim <= t_next; this.t_sim += this.simulation.ts) {
+      for(; this.t_sim <= t_next; this.t_sim += this.simulation.ts) {
+        // curves for stars
+        this.simulation.curve_pos_list = [];
+        for (let i = 0; i < this.simulation.num_splines; i++){
+          const curve_sample_t = 0.5 * (Math.sin(t_sim + 10*i)+1);
+          this.simulation.curve_pos_list[i] = this.spline_list[i].get_position(curve_sample_t);
+        }
         this.simulation.update(this.movementFlag);
-        this.movementFlag = "none"; //reset it 
+        this.movementFlag = "none"; //reset it
       }
     }
-
     this.simulation.draw(caller, this.uniforms, this.shapes, this.materials);
   }
 

@@ -32,7 +32,9 @@ export class Star {
     draw(webgl_manager, uniforms, shapes, materials){
         const star_color = hex_color("#FCF4A3");
 
-        let star_transform = Mat4.identity();
+        //let star_transform = Mat4.identity();
+        let star_transform = Mat4.scale(0.5, 0.5, 0.5)
+            .pre_multiply(Mat4.translation(this.pos[0], this.pos[1], this.pos[2]));
         star_transform = star_transform
             .times(Mat4.scale(this.scale, this.scale, this.scale));
 
