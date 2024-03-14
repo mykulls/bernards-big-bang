@@ -3,12 +3,22 @@ import {tiny, defs} from './examples/common.js';
 // Pull these names into this module's scope for convenience:
 const { vec3, vec4, color, hex_color, Mat4, Shape, Material, Shader, Texture, Component } = tiny;
 
-function symplectic_euler(cur_pos, cur_vel, f, m, ts) {
+export function symplectic_euler(cur_pos, cur_vel, f, m, ts, moveDirection = "none") {
+    // console.log(moveDirection);
+    let deltaV = vec3(0, 0, 0);
+    if (moveDirection === "left") {
+        deltaV = vec3(-1, 0, 0); // Adjust velocity for left movement
+    } else if (moveDirection === "right") {
+        deltaV = vec3(1, 0, 0); // Adjust velocity for right movement
+    }
+
     const cur_acc = f.times(1.0 / m);
-    const vel = cur_vel.plus(cur_acc.times(ts));
+    const vel = cur_vel.plus(cur_acc.times(ts)).plus(deltaV); // Adjust velocity
     const pos = cur_pos.plus(vel.times(ts));
+
     return { vel, pos };
 }
+
 
 export class Star {
     constructor(scale){
@@ -64,16 +74,16 @@ export class Star {
 
 class Particle {
     constructor(m=0, pos=vec3(0, 0, 0), vel=vec3(0, 0, 0), f=vec3(0, 0, 0)) {
-      this.m = m;
-      this.pos = pos;
-      this.vel = vel;
-      this.f = f;
-      this.original_vel = vel;
-      this.original_pos = pos;
+        this.m = m;
+        this.pos = pos;
+        this.vel = vel;
+        this.f = f;
+        this.original_vel = vel;
+        this.original_pos = pos;
     }
-  
-    update(ts) {
-        ({ vel: this.vel, pos: this.pos } = symplectic_euler(this.pos, this.vel, this.f, this.m, ts));
+
+    update(ts, moveDirection) {
+        ({ vel: this.vel, pos: this.pos } = symplectic_euler(this.pos, this.vel, this.f, this.m, ts,moveDirection));
         if(this.pos[1] < -10) {
           this.pos = this.original_pos;
           this.vel = this.original_vel;
