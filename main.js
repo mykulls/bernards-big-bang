@@ -31,7 +31,11 @@ function platform_forces(platforms, pos, vel) {
       break;
     }
   }
-  console.log(f_n)
+
+  // cap the force of the platforms
+  if (f_n[1] > 500) {
+    f_n = vec3(f_n[0], 500, f_n[2]);
+  }
   return f_n;
 }
 
@@ -150,9 +154,9 @@ export const Part_two_spring_base =
         //instantiate simulation
         this.simulation = new Simulation();
         //set bernard from laura's changes
-        this.simulation.set_bernard(1, -3, 4, 2, 1, 0, 0);
-        this.simulation.create_platform(-5, 1, 2,5, 12500, 10);
-        this.simulation.create_platform(5, 2, 5, 12500, 10);
+        this.simulation.set_bernard(1, -3, 4, 2, 0, 0, 0);
+        this.simulation.create_platform(-5, 1, 2, 15000, 20, 5, 5);
+        this.simulation.create_platform(5, 2, 5, 15000, 20, 5, 5);
         //set bernard from michael's changes
         //this.simulation.set_bernard(1, 2, 4, 2, 1, 0, 1);
         // this.simulation.create_platform(2.5, 1, 2.5, 12500, 10);
@@ -214,7 +218,6 @@ export class main extends Part_two_spring_base {
       Mat4.translation(-b_pos[0], -b_pos[1] - 2.5, -b_pos[2] - 20),
       this.uniforms
     ); // Locate the camera here (inverted matrix).
-    // console.log(b_pos[1]);
     const blue = color(0, 0, 1, 1),
       yellow = color(1, 1, 0, 1);
 
