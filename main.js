@@ -204,8 +204,8 @@ export const Part_two_spring_base =
         const b_pos = this.simulation.bernard.pos;
 
         if (!caller.controls) {
-            this.animated_children.push(caller.controls = new defs.Movement_Controls({ uniforms: this.uniforms }));
-            caller.controls.add_mouse_controls(caller.canvas);
+            // this.animated_children.push(caller.controls = new defs.Movement_Controls({ uniforms: this.uniforms }));
+            // caller.controls.add_mouse_controls(caller.canvas);
             Shader.assign_camera(Mat4.translation(0, -b_pos[1]-5, -50), this.uniforms);    // Locate the camera here (inverted matrix).
         }
         this.uniforms.projection_transform = Mat4.perspective(Math.PI / 4, caller.width / caller.height, 1, 500);
@@ -274,7 +274,7 @@ export class main extends Part_two_spring_base {
     // buttons with key bindings for affecting this scene, and live info readouts.
     this.control_panel.innerHTML += "Platforms:";
     this.new_line();
-    this.key_triggered_button("Run", [], this.start);
+    this.key_triggered_button("Run", ["r"], this.start);
     this.new_line();
 
     // Define callback functions for moving left and right
