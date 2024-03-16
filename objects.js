@@ -4,7 +4,8 @@ import {tiny, defs} from './examples/common.js';
 const { vec3, vec4, color, hex_color, Mat4, Shape, Material, Shader, Texture, Component } = tiny;
 
 export function symplectic_euler(cur_pos, cur_vel, f, m, ts, moveDirection = "none") {
-    // console.log(moveDirection);
+    const max_vel = 10;
+
     let deltaV = vec3(0, 0, 0);
     if (moveDirection === "left") {
         deltaV = vec3(-1.5, 0, 0); // Adjust velocity for left movement
@@ -13,7 +14,19 @@ export function symplectic_euler(cur_pos, cur_vel, f, m, ts, moveDirection = "no
     }
 
     const cur_acc = f.times(1.0 / m);
-    const vel = cur_vel.plus(cur_acc.times(ts)).plus(deltaV); // Adjust velocity
+    let vel = cur_vel.plus(cur_acc.times(ts)).plus(deltaV); // Adjust velocity
+
+    // Cap velocity
+    if(vel[0] > 10) {
+        vel = vec3(max_vel, vel[1], vel[2]);
+    }
+    if(vel[0] < -10) {
+        vel = vec3(-max_vel, vel[1], vel[2]);
+    }
+    if(vel[1] > 15) {
+        vel = vec3(vel[0], max_vel+5, vel[2]);
+    }
+
     const pos = cur_pos.plus(vel.times(ts));
 
     return { vel, pos };

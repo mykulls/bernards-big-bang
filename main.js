@@ -32,10 +32,6 @@ function platform_forces(platforms, pos, vel) {
     }
   }
 
-  // cap the force of the platforms
-  if (f_n[1] > 500) {
-    f_n = vec3(f_n[0], 500, f_n[2]);
-  }
   return f_n;
 }
 
@@ -245,8 +241,6 @@ export const Part_two_spring_base =
           this.curve_list[i] = new Curve_Shape(this.curve_fn_list[i], 100);
         }
       }
-    }
-
       render_animation( caller )
       {                                             
         const b_pos = this.simulation.bernard.pos;
@@ -259,7 +253,7 @@ export const Part_two_spring_base =
 
         const t = this.t = this.uniforms.animation_time/1000;
         const angle = Math.sin( t );
-      }
+
       this.uniforms.projection_transform = Mat4.perspective(
         Math.PI / 4,
         caller.width / caller.height,
@@ -273,9 +267,6 @@ export const Part_two_spring_base =
           100000
         ),
       ]; // Slight top angle fill light
-
-      const t = (this.t = this.uniforms.animation_time / 1000);
-      const angle = Math.sin(t);
 
       this.shapes.axis.draw(
         caller,
@@ -365,7 +356,6 @@ export class main extends Part_two_spring_base {
 
   start() {
     // callback for Run button
-    document.getElementById("output").value = "start";
     this.run = !this.run;
   }
 }
