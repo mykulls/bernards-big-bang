@@ -22,21 +22,6 @@ index.html - The web page document containing the canvas (drawing surface).  It 
 <body style="background: DarkGray">
 <!-- Begin typing your web page's text here. //-->
 
-<button id="p1">Asteroid</button>
-<button id="p2">Part 2</button>
-<button id="p3">Part 3</button>
-
-<div class="row">
-    <div class="column">
-        <pre>Input: </pre>
-        <textarea id="input" cols="80" rows="5"></textarea>
-    </div>
-    <div class="column">
-        <pre>Output: </pre>
-        <textarea id="output" cols="80" rows="5"></textarea>
-    </div>
-</div>
-
 
 <!-- The following code embeds a WebGL canvas panel powered by a tree of Components from tiny-graphics.  //-->
 <div id="main-section" class="document-builder"></div>
@@ -56,10 +41,6 @@ function select_scene(i) {
     root.animated_children.push (...additional_scenes.map (scene => new scene ()));
     root.render_layout (element_to_replace);
 }
-
-document.getElementById("p1").addEventListener("click", () => { select_scene(1) });
-document.getElementById("p2").addEventListener("click", () => { select_scene(2) });
-document.getElementById("p3").addEventListener("click", () => { select_scene(3) });
 </script>
 
 </body>
