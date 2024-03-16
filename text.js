@@ -63,11 +63,34 @@ export class Text_Demo extends Component {             // **Text_Demo** is a sce
     };
   }
 
-  render_animation(caller, uniforms) {
+  show_score_and_lives(caller, score, lives) {
     Shader.assign_camera(Mat4.look_at(...Vector.cast([0, 0, 4], [0, 0, 0], [0, 1, 0])), this.uniforms);
     this.uniforms.projection_transform = Mat4.perspective(Math.PI / 4, caller.width / caller.height, 1, 500);
-    this.shapes.text.set_string("Ouch! -10 points", caller);
-    const translation_matrix = Mat4.translation(-11, 8, 0);
-    this.shapes.text.draw(caller, this.uniforms, Mat4.scale(0.1, 0.1, 0.1).times(translation_matrix), this.text_image);
+
+    // Score
+    this.shapes.text.set_string("Score: " + (Math.floor(score)).toString(), caller);
+    this.shapes.text.draw(caller, this.uniforms, Mat4.scale(0.1, 0.1, 0.1).times(Mat4.translation(-25, 12, 0)), this.text_image);
+
+    // Lives
+    if (lives < 0) {
+      lives = 0;
+    }
+    this.shapes.text.set_string("Lives: " + lives.toString(), caller);
+    this.shapes.text.draw(caller, this.uniforms, Mat4.scale(0.1, 0.1, 0.1).times(Mat4.translation(-25, 9, 0)), this.text_image);
+  }
+
+  show_game_over_or_hit(caller, game_over) {
+    Shader.assign_camera(Mat4.look_at(...Vector.cast([0, 0, 4], [0, 0, 0], [0, 1, 0])), this.uniforms);
+    this.uniforms.projection_transform = Mat4.perspective(Math.PI / 4, caller.width / caller.height, 1, 500);
+    if (game_over) {
+      this.shapes.text.set_string("GAME OVER", caller);
+      const translation_matrix = Mat4.translation(-6, 9, 0);
+      this.shapes.text.draw(caller, this.uniforms, Mat4.scale(0.1, 0.1, 0.1).times(translation_matrix), this.text_image);
+    }
+    else {
+      this.shapes.text.set_string("Ouch!", caller);
+      const translation_matrix = Mat4.translation(0, 5, 0);
+      this.shapes.text.draw(caller, this.uniforms, Mat4.scale(0.1, 0.1, 0.1).times(translation_matrix), this.text_image);
+    }
   }
 }
