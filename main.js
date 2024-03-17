@@ -52,14 +52,6 @@ class Platform {
   }
 }
 
-class Asteroid extends Body {
-  constructor() {
-    
-
-    super.constructor(this.random_shape(), this.random_color(), vec3(2, 2 + Math.random(), 2));
-  }
-}
-
 class Simulation {
   constructor(platforms = [], ts = 1.0 / 60, g = vec3(0, -9.8, 0)) {
     this.platforms = platforms;
@@ -162,10 +154,7 @@ class Simulation {
                 factor * b.linear_velocity[1] - 2 * dot_product * normal[1],
                 factor * b.linear_velocity[2] - 2 * dot_product * normal[2]
             ];
-            console.log('before')
-            console.log(b.linear_velocity)
             b.linear_velocity.set(reflection);
-            console.log(b.linear_velocity);
             this.bernard.pos = vec3(this.bernard.pos[0] - reflection[0]*0.05, this.bernard.pos[1] - reflection[1]*0.05, this.bernard.pos[2]);
         }
     }
