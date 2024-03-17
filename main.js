@@ -55,7 +55,6 @@ class Platform {
 class Asteroid extends Body {
   constructor() {
     
-
     super.constructor(this.random_shape(), this.random_color(), vec3(2, 2 + Math.random(), 2));
   }
 }
@@ -106,7 +105,7 @@ class Simulation {
     return shape_list[shape_names[~~(shape_names.length * Math.random())]];
   }
 
-  update(movementFlag, dt, collideCallback) {
+  update(movementFlag) {
     for (let i = 0; i < this.num_splines; i++) {
       this.star_list[i].pos = this.curve_pos_list[i];
     }
@@ -121,7 +120,8 @@ class Simulation {
         new Body(
             this.random_shape(),
             this.random_color(),
-            vec3(1, Math.random() + 0.5, 1)
+            // vec3(1, Math.random() + 0.5, 1)
+            vec3(1, -1, 1)
         ).emplace(
             Mat4.translation(...vec3(Math.random()*5, initial_y_position, 2)),
             vec3(Math.random()*5 - 2.5, -Math.random()*3, 0),
@@ -129,57 +129,13 @@ class Simulation {
         )
       );
     }
-
-    for (let b of this.asteroids) {
-        b.linear_velocity[1] += dt * -9.8;
-
-        const leeway = 3;
-        const x_collision = b.center[0] >= this.bernard.pos[0] - leeway && b.center[0] <= this.bernard.pos[0] + leeway;
-        const y_collision = b.center[1] >= this.bernard.pos[1] - leeway && b.center[1] <= this.bernard.pos[1] + leeway;
-        const z_collision = b.center[2] >= this.bernard.pos[2] - leeway && b.center[2] <= this.bernard.pos[2] + leeway;
-
-        if (x_collision && y_collision && z_collision) {
-            collideCallback();
-            this.message_timer = 25;
-
-            const distance = Math.sqrt(
-                Math.pow(b.center[0] - this.bernard.pos[0], 2) +
-                Math.pow(b.center[1] - this.bernard.pos[1], 2) +
-                Math.pow(b.center[2] - this.bernard.pos[2], 2)
-            );
-            const normal = [
-                (b.center[0] - this.bernard.pos[0]) / distance,
-                (b.center[1] - this.bernard.pos[1]) / distance,
-                (b.center[2] - this.bernard.pos[2]) / distance
-            ];
-            const dot_product = normal[0] * b.linear_velocity[0] +
-                normal[1] * b.linear_velocity[1] +
-                normal[2] * b.linear_velocity[2];
-
-            const factor = 0.1;
-            const reflection = [
-                factor * b.linear_velocity[0] - 2 * dot_product * normal[0],
-                factor * b.linear_velocity[1] - 2 * dot_product * normal[1],
-                factor * b.linear_velocity[2] - 2 * dot_product * normal[2]
-            ];
-            b.linear_velocity.set(reflection);
-            this.bernard.pos = vec3(this.bernard.pos[0] - reflection[0] * factor, this.bernard.pos[1], this.bernard.pos[2]);
-        }
-    }
-
-    // Delete bodies that stray too far away:
-    this.asteroids = this.asteroids.filter(b => b.center.norm() < 20);
   }
 
-  collision() {
+  collision(collideCallback, dt) {
     // bernard's comparison points
-    const platform_n = vec3(0, 1, 0);
     const pos = this.bernard.pos;
-    const lefthead = pos.plus(vec3(-0.5, 0, 0));
     const leftbody = pos.plus(vec3(-0.75, -1.25, 0));
-    const righthead = pos.plus(vec3(0.5, 0, 0));
     const rightbody = pos.plus(vec3(0.75, -1.25, 0));
-    const tophead = pos.plus(vec3(0, 0.5, 0));
 
     // Collision with platforms
     for (const platform of this.platforms) {
@@ -209,6 +165,33 @@ class Simulation {
       }
     }
 
+    for (let b of this.asteroids) {
+      // b.linear_velocity[1] += dt * -9.8;
+
+      const leeway = 3;
+      const x_collision = b.center[0] >= this.bernard.pos[0] - leeway && b.center[0] <= this.bernard.pos[0] + leeway;
+      const y_collision = b.center[1] >= this.bernard.pos[1] - leeway && b.center[1] <= this.bernard.pos[1] + leeway;
+      const z_collision = b.center[2] >= this.bernard.pos[2] - leeway && b.center[2] <= this.bernard.pos[2] + leeway;
+
+      if (x_collision && y_collision && z_collision) {
+          collideCallback();
+          this.message_timer = 90;
+
+          console.log("collided with asteroid");
+          const index = this.asteroids.indexOf(b);
+          b.linear_velocity[0] += 0.5;
+
+        //   if (index !== -1) {
+        //     this.asteroids.splice(index, 1);
+        // }
+          // this.asteroids.splice(b, 1);
+          const res = "left";
+          return res;
+      }
+  }
+
+  // Delete bodies that stray too far away:
+  // this.asteroids = this.asteroids.filter(b => b.center.norm() < 20);
   }
 
   draw(webgl_manager, uniforms, shapes, materials) {
@@ -418,12 +401,13 @@ export class main extends Part_two_spring_base {
           this.simulation.curve_pos_list[i] =
             this.spline_list[i].get_position(curve_sample_t);
         }
-        const res = this.simulation.collision();
+        const collideCallback =  () => this.hit_asteroid();
+        const res = this.simulation.collision(collideCallback, dt);
         if (res === "left" || res ==="right") {
-          this.simulation.update(res, dt, () => this.hit_asteroid());
+          this.simulation.update(res);
         }
         else {
-          this.simulation.update(this.movementFlag, dt, () => this.hit_asteroid());
+          this.simulation.update(this.movementFlag);
         }
         for (let b of this.simulation.asteroids) {
           b.advance(this.dt);
