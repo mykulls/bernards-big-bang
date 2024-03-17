@@ -95,11 +95,12 @@ class Particle {
         this.original_pos = pos;
     }
 
-    update(ts, moveDirection) {
+    update(ts, moveDirection, dieCallback) {
         ({ vel: this.vel, pos: this.pos } = symplectic_euler(this.pos, this.vel, this.f, this.m, ts,moveDirection));
         if(this.pos[1] < -10) {
           this.pos = this.original_pos;
           this.vel = this.original_vel;
+          dieCallback();
         }
     }
   }

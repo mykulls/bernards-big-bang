@@ -108,7 +108,7 @@ class Simulation {
     }
 
     this.bernard.f = get_forces(this.g, this.platforms, this.bernard);
-    this.bernard.update(this.ts, movementFlag);
+    this.bernard.update(this.ts, movementFlag, () => { this.lives -= 1 });
 
     // Earn 1 point for every second alive
     this.score += 1 / 60;
@@ -133,7 +133,7 @@ class Simulation {
     for (let b of this.asteroids) {
       b.linear_velocity[1] += dt * -9.8;
 
-      const leeway = 3;
+      const leeway = 2;
       const x_collision = b.center[0] >= this.bernard.pos[0] - leeway && b.center[0] <= this.bernard.pos[0] + leeway;
       const y_collision = b.center[1] >= this.bernard.pos[1] - leeway && b.center[1] <= this.bernard.pos[1] + leeway;
 
@@ -278,7 +278,6 @@ export const Part_two_spring_base =
       this.shapes = {
         box: new defs.Cube(),
         ball: new defs.Subdivision_Sphere(4),
-        axis: new defs.Axis_Arrows(),
         wall: new defs.Square(),
       };
 
@@ -394,13 +393,6 @@ export const Part_two_spring_base =
           100000
         ),
       ]; // Slight top angle fill light
-
-      this.shapes.axis.draw(
-        caller,
-        this.uniforms,
-        Mat4.identity(),
-        this.materials.rgb
-      );
 
       // Always show score in top left corner
       this.simulation.text.show_score_and_lives(caller, this.simulation.score, this.simulation.lives);
