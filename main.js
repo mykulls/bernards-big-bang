@@ -106,7 +106,7 @@ class Simulation {
     return shape_list[shape_names[~~(shape_names.length * Math.random())]];
   }
 
-  update(movementFlag, dt) {
+  update(movementFlag, dt, collideCallback) {
     for (let i = 0; i < this.num_splines; i++) {
       this.star_list[i].pos = this.curve_pos_list[i];
     }
@@ -116,15 +116,15 @@ class Simulation {
 
     // Generate additional moving bodies if there ever aren't enough:
     while (this.asteroids.length < 3) { // Change value to increase or decrease the number of asteroids
-      const initial_y_position = 10;
+      const initial_y_position = this.bernard.pos[1] + 10;
       this.asteroids.push(
         new Body(
             this.random_shape(),
             this.random_color(),
-            vec3(2, 2 + Math.random(), 2)
+            vec3(1, Math.random() + 0.5, 1)
         ).emplace(
-            Mat4.translation(...vec3(0, initial_y_position, 0).randomized(2)),
-            vec3(0, -1, 0).randomized(2).normalized().times(3),
+            Mat4.translation(...vec3(Math.random()*5, initial_y_position, 2)),
+            vec3(Math.random()*5 - 2.5, -Math.random()*3, 0),
             Math.random()
         )
       );
@@ -139,8 +139,7 @@ class Simulation {
         const z_collision = b.center[2] >= this.bernard.pos[2] - leeway && b.center[2] <= this.bernard.pos[2] + leeway;
 
         if (x_collision && y_collision && z_collision) {
-          console.log(b)
-            this.display_ouch = true;
+            collideCallback();
             this.message_timer = 25;
 
             const distance = Math.sqrt(
@@ -164,13 +163,12 @@ class Simulation {
                 factor * b.linear_velocity[2] - 2 * dot_product * normal[2]
             ];
             b.linear_velocity.set(reflection);
-            this.bernard.pos[0] -= reflection[0] * factor;
-            this.bernard.pos[2] -= reflection[2] * factor;
+            this.bernard.pos = vec3(this.bernard.pos[0] - reflection[0] * factor, this.bernard.pos[1], this.bernard.pos[2] - reflection[2] * factor);
         }
     }
 
     // Delete bodies that stray too far away:
-    this.asteroids = this.asteroids.filter(b => b.center.norm() < 50);
+    this.asteroids = this.asteroids.filter(b => b.center.norm() < 20);
   }
 
   collision() {
@@ -309,6 +307,8 @@ export const Part_two_spring_base =
         this.text = new Text_Demo();
         this.display_ouch = false;
         this.message_timer = 0;
+        this.score = 0;
+        this.lives = 3;
         
         //instantiate star/spline vars
         this.spline_list = [];
@@ -373,6 +373,8 @@ export const Part_two_spring_base =
         Mat4.identity(),
         this.materials.rgb
       );
+      // Always show score in top left corner
+      this.text.show_score_and_lives(caller, this.score, this.lives);
 
       const model_transform = Mat4.identity().times(Mat4.scale(400, 400, 400));
       this.shapes.wall.draw(caller, this.uniforms, model_transform.times(Mat4.translation(0, 0, -1)), { ...this.front_space_material });
@@ -383,6 +385,10 @@ export const Part_two_spring_base =
   });
 
 export class main extends Part_two_spring_base {
+  hit_asteroid() {
+    this.display_ouch = true;
+  }
+
   render_animation(caller) {
     // Call the setup code that we left inside the base class:
     super.render_animation(caller);
@@ -414,28 +420,31 @@ export class main extends Part_two_spring_base {
         }
         const res = this.simulation.collision();
         if (res === "left" || res ==="right") {
-          this.simulation.update(res, dt);
+          this.simulation.update(res, dt, () => this.hit_asteroid());
         }
-        this.simulation.update(this.movementFlag, dt);
+        else {
+          this.simulation.update(this.movementFlag, dt, () => this.hit_asteroid());
+        }
         for (let b of this.simulation.asteroids) {
           b.advance(this.dt);
         }
         this.movementFlag = "none"; //reset it
         for (let b of this.simulation.asteroids) {
-          b.advance(this.t / this.dt);
+          b.blend_state(this.t / this.dt / 10);
         }
       }
     }
 
     // Display Ouch! message when asteroid hits Bernard
     if (this.display_ouch) {
-      this.text.render_animation(caller);
+      this.text.show_game_over_or_hit(caller, false);
       this.message_timer -= 1;
       if (this.message_timer < 0) {
           this.message_timer = 0;
           this.display_ouch = false;
-      }
-  }
+      }  
+    }
+
     this.simulation.draw(caller, this.uniforms, this.shapes, this.materials);
   }
 
