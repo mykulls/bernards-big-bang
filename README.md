@@ -51,4 +51,4 @@ python3 server.py
 In the game, players control Bernard's movement using the 'A' key to move left and the 'D' key to move right, allowing them to navigate and avoid incoming asteroids. Each time Bernard collides with a platform, he will bounce off it, adding an element of challenge to the gameplay. To restart the game, players can simply refresh the page, providing a quick and easy way to start over and continue playing. Bernard has three lives which provides another challenge. He loses a life either when he falls off the platform or when he collides with an asteroid. The player’s goal is to stay alive as long as possible, with each second alive incrementing the score by one point.
 
 ## Credits
-Created by Melissa Chen, Laura Lu, Michael Shi, and Juliet Zhang for CS C174C Winter 2024.
+Created by Melissa Chen, Laura Lu, Michael Shi, and Juliet Zhang for CS C174C Winter 2024. Used `collisions-demo.js` and `text-demo.js` from the given `examples` folder from class, as well as Assignment 1 code (especially for splines).
