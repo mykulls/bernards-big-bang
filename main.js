@@ -163,7 +163,7 @@ class Simulation {
                 factor * b.linear_velocity[2] - 2 * dot_product * normal[2]
             ];
             b.linear_velocity.set(reflection);
-            this.bernard.pos = vec3(this.bernard.pos[0] - reflection[0] * factor, this.bernard.pos[1], this.bernard.pos[2] - reflection[2] * factor);
+            this.bernard.pos = vec3(this.bernard.pos[0] - reflection[0] * factor, this.bernard.pos[1], this.bernard.pos[2]);
         }
     }
 
