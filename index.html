@@ -2,30 +2,36 @@
 index.html - The web page document containing the canvas (drawing surface).  It launches your JavaScript files. //-->
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <style>
         /* Set additional styling options for the columns*/
         .column {
-        float: left;
-        width: 50%;
+            float: left;
+            width: 50%;
         }
+
         .row:after {
-        content: "";
-        display: table;
-        clear: both;
+            content: "";
+            display: table;
+            clear: both;
         }
     </style>
 
-    <meta charset="UTF-8"/>
+    <meta charset="UTF-8" />
     <link rel="icon" href="assets/fav.ico">
-    <title>WebGL</title></head>
+    <title>WebGL</title>
+</head>
+
 <body style="background: DarkGray">
-<!-- Begin typing your web page's text here. //-->
+    <!-- Begin typing your web page's text here. //-->
 
+    <button id="p1">main</button>
+    <button id="p2">asteroid</button>
 
-<!-- The following code embeds a WebGL canvas panel powered by a tree of Components from tiny-graphics.  //-->
-<div id="main-section" class="document-builder"></div>
-<script type=module>
+    <!-- The following code embeds a WebGL canvas panel powered by a tree of Components from tiny-graphics.  //-->
+    <div id="main-section" class="document-builder"></div>
+    <script type=module>
 // ********************* THE ENTRY POINT OF YOUR JAVASCRIPT PROGRAM STARTS HERE *********************
 // Indicate which element on the page you want the Canvas_Widget to replace with a 3D WebGL area:
 const element_to_replace = document.querySelector ("#main-section");
@@ -41,7 +47,11 @@ function select_scene(i) {
     root.animated_children.push (...additional_scenes.map (scene => new scene ()));
     root.render_layout (element_to_replace);
 }
+
+document.getElementById("p1").addEventListener("click", () => { select_scene(1) });
+document.getElementById("p2").addEventListener("click", () => { select_scene(2) });
 </script>
 
 </body>
+
 </html>

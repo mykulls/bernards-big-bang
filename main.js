@@ -1,6 +1,8 @@
 import { tiny, defs } from "./examples/common.js";
-import { Bernard, Star, symplectic_euler } from "./objects.js";
-import { Curve_Shape, Spline, Hermite_Spline } from "./splines.js";
+import { Bernard, Star } from "./objects.js";
+import { Curve_Shape, Hermite_Spline } from "./splines.js";
+import { Body } from "./asteroid.js";
+import { Text_Demo } from './text.js';
 
 // Pull these names into this module's scope for convenience:
 const { vec3, vec4, color, Mat4, Shape, Material, Shader, Texture, Component } =
@@ -50,6 +52,14 @@ class Platform {
   }
 }
 
+class Asteroid extends Body {
+  constructor() {
+    
+
+    super.constructor(this.random_shape(), this.random_color(), vec3(2, 2 + Math.random(), 2));
+  }
+}
+
 class Simulation {
   constructor(platforms = [], ts = 1.0 / 60, g = vec3(0, -9.8, 0)) {
     this.platforms = platforms;
@@ -60,6 +70,13 @@ class Simulation {
     this.num_splines = 20;
     this.curve_pos_list = [];
     this.star_list = [];
+    this.asteroids = [];
+    this.shapes = {
+      subSphere: new defs.Subdivision_Sphere(1),
+      rock: new defs.Rock(1),
+    };
+    this.shader = new defs.Fake_Bump_Map(1);
+    this.material = { shader: this.shader, color: color(.4, .8, .4, 1), ambient: 0.4, specularity: 0 };
   }
 
   set_bernard(m, x, y, z, vx, vy, vz) {
@@ -76,13 +93,84 @@ class Simulation {
     }
   }
 
-  update(movementFlag) {
+  random_color() {
+    return {
+      ...this.material,
+      color: color(0.4 + 0.4 * Math.random(), 0.4 + 0.4 * Math.random(), 0.4 + 0.4 * Math.random(), 1),
+      ambient: 0.1
+    }
+  }
+
+  random_shape(shape_list = this.shapes) {                                       // random_shape():  Extract a random shape from this.shapes.
+    const shape_names = Object.keys(shape_list);
+    return shape_list[shape_names[~~(shape_names.length * Math.random())]];
+  }
+
+  update(movementFlag, dt) {
     for (let i = 0; i < this.num_splines; i++) {
       this.star_list[i].pos = this.curve_pos_list[i];
     }
 
     this.bernard.f = get_forces(this.g, this.platforms, this.bernard);
     this.bernard.update(this.ts, movementFlag);
+
+    // Generate additional moving bodies if there ever aren't enough:
+    while (this.asteroids.length < 3) { // Change value to increase or decrease the number of asteroids
+      const initial_y_position = 10;
+      this.asteroids.push(
+        new Body(
+            this.random_shape(),
+            this.random_color(),
+            vec3(2, 2 + Math.random(), 2)
+        ).emplace(
+            Mat4.translation(...vec3(0, initial_y_position, 0).randomized(2)),
+            vec3(0, -1, 0).randomized(2).normalized().times(3),
+            Math.random()
+        )
+      );
+    }
+
+    for (let b of this.asteroids) {
+        b.linear_velocity[1] += dt * -9.8;
+
+        const leeway = 3;
+        const x_collision = b.center[0] >= this.bernard.pos[0] - leeway && b.center[0] <= this.bernard.pos[0] + leeway;
+        const y_collision = b.center[1] >= this.bernard.pos[1] - leeway && b.center[1] <= this.bernard.pos[1] + leeway;
+        const z_collision = b.center[2] >= this.bernard.pos[2] - leeway && b.center[2] <= this.bernard.pos[2] + leeway;
+
+        if (x_collision && y_collision && z_collision) {
+          console.log(b)
+            this.display_ouch = true;
+            this.message_timer = 25;
+
+            const distance = Math.sqrt(
+                Math.pow(b.center[0] - this.bernard.pos[0], 2) +
+                Math.pow(b.center[1] - this.bernard.pos[1], 2) +
+                Math.pow(b.center[2] - this.bernard.pos[2], 2)
+            );
+            const normal = [
+                (b.center[0] - this.bernard.pos[0]) / distance,
+                (b.center[1] - this.bernard.pos[1]) / distance,
+                (b.center[2] - this.bernard.pos[2]) / distance
+            ];
+            const dot_product = normal[0] * b.linear_velocity[0] +
+                normal[1] * b.linear_velocity[1] +
+                normal[2] * b.linear_velocity[2];
+
+            const factor = 0.1;
+            const reflection = [
+                factor * b.linear_velocity[0] - 2 * dot_product * normal[0],
+                factor * b.linear_velocity[1] - 2 * dot_product * normal[1],
+                factor * b.linear_velocity[2] - 2 * dot_product * normal[2]
+            ];
+            b.linear_velocity.set(reflection);
+            this.bernard.pos[0] -= reflection[0] * factor;
+            this.bernard.pos[2] -= reflection[2] * factor;
+        }
+    }
+
+    // Delete bodies that stray too far away:
+    this.asteroids = this.asteroids.filter(b => b.center.norm() < 50);
   }
 
   collision() {
@@ -142,8 +230,7 @@ class Simulation {
         platform.pos[2]
       ).times(Mat4.scale(platform.w, 0.1, platform.h));
       shapes.box.draw(webgl_manager, uniforms, p1_t, {
-        ...materials.plastic,
-        color: red,
+        ...materials.platform,
       });
     });
 
@@ -151,6 +238,11 @@ class Simulation {
     for (let i = 0; i < this.num_splines; i++) {
       this.star_list[i].draw(webgl_manager, uniforms, shapes, materials);
     }
+
+    // Draw each shape at its current location:
+    for (let b of this.asteroids) {
+        b.shape.draw(webgl_manager, uniforms, b.drawn_location, b.material);
+    }    
   }
 }
 
@@ -166,6 +258,7 @@ export const Part_two_spring_base =
         box: new defs.Cube(),
         ball: new defs.Subdivision_Sphere(4),
         axis: new defs.Axis_Arrows(),
+        wall: new defs.Square(),
       };
 
       const phong = new defs.Phong_Shader();
@@ -191,11 +284,18 @@ export const Part_two_spring_base =
         texture: new Texture("assets/rgb.jpg"),
       };
 
+      //instantiate simulation
+      this.simulation = new Simulation();
+
+      const shader = this.simulation.shader;
+      this.materials.platform = { shader, color: color(1, 0.5, 0.2, 1), ambient: 0.1, diffusivity: 0.9 };
+      this.front_space_material = { shader, color: color(0, 0, 0, 1), ambient: 1, diffusivity: 0.1, specularity: 0.1, texture: new Texture("./assets/front.png", "LINEAR_MIPMAP_LINEAR") };
+      this.left_space_material = { shader, color: color(0, 0, 0, 1), ambient: 1, diffusivity: 0.1, specularity: 0.1, texture: new Texture("./assets/left.png", "LINEAR_MIPMAP_LINEAR") };
+      this.back_space_material = { shader, color: color(0, 0, 0, 1), ambient: 1, diffusivity: 0.1, specularity: 0.1, texture: new Texture("./assets/back.png", "LINEAR_MIPMAP_LINEAR") };
+      this.right_space_material = { shader, color: color(0, 0, 0, 1), ambient: 1, diffusivity: 0.1, specularity: 0.1, texture: new Texture("./assets/right.png", "LINEAR_MIPMAP_LINEAR") };
       this.ball_location = vec3(1, 1, 1);
       this.ball_radius = 0.25;
       
-        //instantiate simulation
-        this.simulation = new Simulation();
         //set bernard from laura's changes
         this.simulation.set_bernard(1, -3, 4, 2, 0, 0, 0);
         this.simulation.create_platform(-5, 1, 2, 15000, 20, 5, 5);
@@ -206,6 +306,9 @@ export const Part_two_spring_base =
         // this.simulation.create_platform(5, 2, 5, 12500, 10);
         this.simulation.create_stars();
         this.run = false;
+        this.text = new Text_Demo();
+        this.display_ouch = false;
+        this.message_timer = 0;
         
         //instantiate star/spline vars
         this.spline_list = [];
@@ -244,10 +347,6 @@ export const Part_two_spring_base =
       render_animation( caller )
       {                                             
         const b_pos = this.simulation.bernard.pos;
-
-        if (!caller.controls) {
-            Shader.assign_camera(Mat4.translation(0, -b_pos[1]-5, -50), this.uniforms);    // Locate the camera here (inverted matrix).
-        }
         this.uniforms.projection_transform = Mat4.perspective(Math.PI / 4, caller.width / caller.height, 1, 500);
         this.uniforms.lights = [defs.Phong_Shader.light_source(vec4(0, 69, 100, 1), color(1, 1, 1, 1), 100000)];    // Slight top angle fill light
 
@@ -274,6 +373,12 @@ export const Part_two_spring_base =
         Mat4.identity(),
         this.materials.rgb
       );
+
+      const model_transform = Mat4.identity().times(Mat4.scale(400, 400, 400));
+      this.shapes.wall.draw(caller, this.uniforms, model_transform.times(Mat4.translation(0, 0, -1)), { ...this.front_space_material });
+      this.shapes.wall.draw(caller, this.uniforms, model_transform.times(Mat4.rotation(Math.PI / 2, 0, 1, 0)).times(Mat4.translation(0, 0, -1)), { ...this.right_space_material });
+      this.shapes.wall.draw(caller, this.uniforms, model_transform.times(Mat4.rotation(-Math.PI / 2, 0, 1, 0)).times(Mat4.translation(0, 0, -1)), { ...this.left_space_material });
+      this.shapes.wall.draw(caller, this.uniforms, model_transform.times(Mat4.rotation(Math.PI, 0, 1, 0)).times(Mat4.translation(0, 0, -1)), { ...this.back_space_material });
     }
   });
 
@@ -297,20 +402,6 @@ export class main extends Part_two_spring_base {
     ));
     let t_sim = (this.t_sim = t);
 
-    // // !!! Draw ground
-    // let floor_transform = Mat4.translation(0, 0, 0).times(Mat4.scale(10, 0.01, 10));
-    // this.shapes.box.draw( caller, this.uniforms, floor_transform, { ...this.materials.plastic, color: yellow } );
-
-    // // !!! Draw ball (for reference)
-    // let ball_transform = Mat4.translation(this.ball_location[0], this.ball_location[1], this.ball_location[2])
-    //     .times(Mat4.scale(this.ball_radius, this.ball_radius, this.ball_radius));
-    // this.shapes.ball.draw( caller, this.uniforms, ball_transform, { ...this.materials.metal, color: blue } );
-
-    // draw the star curves
-    // for (let i = 0; i < this.simulation.num_splines; i++){
-    //   this.curve_list[i].draw(caller, this.uniforms);
-    // }
-
     if (this.run) {
       const t_next = t_sim + dt;
       for (; this.t_sim <= t_next; this.t_sim += this.simulation.ts) {
@@ -323,12 +414,28 @@ export class main extends Part_two_spring_base {
         }
         const res = this.simulation.collision();
         if (res === "left" || res ==="right") {
-          this.simulation.update(res);
+          this.simulation.update(res, dt);
         }
-        this.simulation.update(this.movementFlag);
+        this.simulation.update(this.movementFlag, dt);
+        for (let b of this.simulation.asteroids) {
+          b.advance(this.dt);
+        }
         this.movementFlag = "none"; //reset it
+        for (let b of this.simulation.asteroids) {
+          b.advance(this.t / this.dt);
+        }
       }
     }
+
+    // Display Ouch! message when asteroid hits Bernard
+    if (this.display_ouch) {
+      this.text.render_animation(caller);
+      this.message_timer -= 1;
+      if (this.message_timer < 0) {
+          this.message_timer = 0;
+          this.display_ouch = false;
+      }
+  }
     this.simulation.draw(caller, this.uniforms, this.shapes, this.materials);
   }
 
