@@ -81,7 +81,7 @@ export class Text_Demo extends Component {             // **Text_Demo** is a sce
 
   show_game_over_or_hit(caller, game_over) {
     Shader.assign_camera(Mat4.look_at(...Vector.cast([0, 0, 4], [0, 0, 0], [0, 1, 0])), this.uniforms);
-    this.uniforms.projection_transform = Mat4.perspective(Math.PI / 4, caller.width / caller.height, 1, 500);
+    // this.uniforms.projection_transform = Mat4.perspective(Math.PI / 4, caller.width / caller.height, 1, 500);
     if (game_over) {
       this.shapes.text.set_string("GAME OVER", caller);
       const translation_matrix = Mat4.translation(-6, 9, 0);

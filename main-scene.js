@@ -51,7 +51,7 @@ Object.assign (defs,
 
 // ******************** SELECT THE DEMO TO DISPLAY:
 
-let scenes = {1: main};
+let scenes = {1: main, 2: Asteroid};
 const scene_selector = (i) => scenes[i];
 
 const main_scene        = main; // default
