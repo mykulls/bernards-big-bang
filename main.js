@@ -116,15 +116,15 @@ class Simulation {
 
     // Generate additional moving bodies if there ever aren't enough:
     while (this.asteroids.length < 3) { // Change value to increase or decrease the number of asteroids
-      const initial_y_position = this.bernard.pos[1] + 10;
+      const initial_y_position = this.bernard.pos[1] + 15;
       this.asteroids.push(
         new Body(
             this.random_shape(),
             this.random_color(),
             vec3(1, Math.random() + 0.5, 1)
         ).emplace(
-            Mat4.translation(...vec3(Math.random()*5, initial_y_position, 2)),
-            vec3(Math.random()*5 - 2.5, -Math.random()*3, 0),
+            Mat4.translation(...vec3(Math.random()*15, initial_y_position, 2)),
+            vec3(Math.random()*5 - 2.5, -Math.random()*2, 0),
             Math.random()
         )
       );
@@ -136,9 +136,9 @@ class Simulation {
         const leeway = 3;
         const x_collision = b.center[0] >= this.bernard.pos[0] - leeway && b.center[0] <= this.bernard.pos[0] + leeway;
         const y_collision = b.center[1] >= this.bernard.pos[1] - leeway && b.center[1] <= this.bernard.pos[1] + leeway;
-        const z_collision = b.center[2] >= this.bernard.pos[2] - leeway && b.center[2] <= this.bernard.pos[2] + leeway;
 
-        if (x_collision && y_collision && z_collision) {
+        // Don't need z collision, in same plane already
+        if (x_collision && y_collision) {
             collideCallback();
             this.message_timer = 25;
 
@@ -162,9 +162,16 @@ class Simulation {
                 factor * b.linear_velocity[1] - 2 * dot_product * normal[1],
                 factor * b.linear_velocity[2] - 2 * dot_product * normal[2]
             ];
+            console.log('before')
+            console.log(b.linear_velocity)
             b.linear_velocity.set(reflection);
-            this.bernard.pos = vec3(this.bernard.pos[0] - reflection[0] * factor, this.bernard.pos[1], this.bernard.pos[2]);
+            console.log(b.linear_velocity);
+            this.bernard.pos = vec3(this.bernard.pos[0] - reflection[0]*0.05, this.bernard.pos[1] - reflection[1]*0.05, this.bernard.pos[2]);
         }
+    }
+
+    for (let b of this.asteroids) {
+      b.advance(dt);
     }
 
     // Delete bodies that stray too far away:
@@ -393,11 +400,6 @@ export class main extends Part_two_spring_base {
     // Call the setup code that we left inside the base class:
     super.render_animation(caller);
 
-    const b_pos = this.simulation.bernard.pos;
-    Shader.assign_camera(
-      Mat4.translation(-b_pos[0], -b_pos[1] - 2.5, -b_pos[2] - 20),
-      this.uniforms
-    ); // Locate the camera here (inverted matrix).
     const blue = color(0, 0, 1, 1),
       yellow = color(1, 1, 0, 1);
 
@@ -425,13 +427,11 @@ export class main extends Part_two_spring_base {
         else {
           this.simulation.update(this.movementFlag, dt, () => this.hit_asteroid());
         }
-        for (let b of this.simulation.asteroids) {
-          b.advance(this.dt);
-        }
+        
         this.movementFlag = "none"; //reset it
-        for (let b of this.simulation.asteroids) {
-          b.blend_state(this.t / this.dt / 10);
-        }
+      }
+      for (let b of this.simulation.asteroids) {
+        b.blend_state(t / dt / 10);
       }
     }
 
@@ -446,6 +446,11 @@ export class main extends Part_two_spring_base {
     }
 
     this.simulation.draw(caller, this.uniforms, this.shapes, this.materials);
+    const b_pos = this.simulation.bernard.pos;
+    Shader.assign_camera(
+      Mat4.translation(-b_pos[0], -b_pos[1] - 2.5, -b_pos[2] - 20),
+      this.uniforms
+    ); // Locate the camera here (inverted matrix).
   }
 
   render_controls() {
