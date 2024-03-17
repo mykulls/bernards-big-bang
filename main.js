@@ -70,6 +70,9 @@ class Simulation {
     };
     this.shader = new defs.Fake_Bump_Map(1);
     this.material = { shader: this.shader, color: color(.4, .8, .4, 1), ambient: 0.4, specularity: 0 };
+    this.text = new Text_Demo();
+    this.score = 0;
+    this.lives = 3;
   }
 
   set_bernard(m, x, y, z, vx, vy, vz) {
@@ -107,70 +110,83 @@ class Simulation {
     this.bernard.f = get_forces(this.g, this.platforms, this.bernard);
     this.bernard.update(this.ts, movementFlag);
 
+    // Earn 1 point for every second alive
+    this.score += 1 / 60;
+
     // Generate additional moving bodies if there ever aren't enough:
     while (this.asteroids.length < 3) { // Change value to increase or decrease the number of asteroids
       const initial_y_position = this.bernard.pos[1] + 15;
       const initial_x_position = this.bernard.pos[0];
       this.asteroids.push(
         new Body(
-            this.random_shape(),
-            this.random_color(),
-            vec3(1, 1, 1)
+          this.random_shape(),
+          this.random_color(),
+          vec3(1, 1, 1)
         ).emplace(
-            Mat4.translation(...vec3(initial_x_position + (Math.random()-0.5) * 30, initial_y_position, 2)),
-            vec3((Math.random()-0.5)*10, -Math.random()*2, 0),
-            Math.random()
+          Mat4.translation(...vec3(initial_x_position + (Math.random() - 0.5) * 30, initial_y_position, 2)),
+          vec3((Math.random() - 0.5) * 10, -Math.random() * 2, 0),
+          Math.random()
         )
       );
     }
 
     for (let b of this.asteroids) {
-        b.linear_velocity[1] += dt * -9.8;
+      b.linear_velocity[1] += dt * -9.8;
 
-        const leeway = 3;
-        const x_collision = b.center[0] >= this.bernard.pos[0] - leeway && b.center[0] <= this.bernard.pos[0] + leeway;
-        const y_collision = b.center[1] >= this.bernard.pos[1] - leeway && b.center[1] <= this.bernard.pos[1] + leeway;
+      const leeway = 3;
+      const x_collision = b.center[0] >= this.bernard.pos[0] - leeway && b.center[0] <= this.bernard.pos[0] + leeway;
+      const y_collision = b.center[1] >= this.bernard.pos[1] - leeway && b.center[1] <= this.bernard.pos[1] + leeway;
 
-        // Don't need z collision, in same plane already
-        if (x_collision && y_collision) {
-            collideCallback();
-            this.message_timer = 25;
+      // Don't need z collision, in same plane already
+      if (x_collision && y_collision) {
+        collideCallback();
+        this.message_timer = 25;
 
-            const distance = Math.sqrt(
-                Math.pow(b.center[0] - this.bernard.pos[0], 2) +
-                Math.pow(b.center[1] - this.bernard.pos[1], 2) +
-                Math.pow(b.center[2] - this.bernard.pos[2], 2)
-            );
-            const normal = [
-                (b.center[0] - this.bernard.pos[0]) / distance,
-                (b.center[1] - this.bernard.pos[1]) / distance,
-                (b.center[2] - this.bernard.pos[2]) / distance
-            ];
-            const dot_product = normal[0] * b.linear_velocity[0] +
-                normal[1] * b.linear_velocity[1] +
-                normal[2] * b.linear_velocity[2];
-
-            const factor = 0.1;
-            const reflection = [
-                factor * b.linear_velocity[0] - 2 * dot_product * normal[0],
-                factor * b.linear_velocity[1] - 2 * dot_product * normal[1],
-                factor * b.linear_velocity[2] - 2 * dot_product * normal[2]
-            ];
-            b.linear_velocity.set(reflection);
-            this.bernard.pos = vec3(this.bernard.pos[0] - reflection[0]*0.05, this.bernard.pos[1] - reflection[1]*0.05, this.bernard.pos[2]);
+        console.log("collided with asteroid");
+        this.lives -= 1;
+        if (this.lives <= 0) {
+          this.run = false;
+          return;
         }
+
+        const index = this.asteroids.indexOf(b);
+        b.linear_velocity[0] += 0.5;
+
+        const distance = Math.sqrt(
+          Math.pow(b.center[0] - this.bernard.pos[0], 2) +
+          Math.pow(b.center[1] - this.bernard.pos[1], 2) +
+          Math.pow(b.center[2] - this.bernard.pos[2], 2)
+        );
+        const normal = [
+          (b.center[0] - this.bernard.pos[0]) / distance,
+          (b.center[1] - this.bernard.pos[1]) / distance,
+          (b.center[2] - this.bernard.pos[2]) / distance
+        ];
+        const dot_product = normal[0] * b.linear_velocity[0] +
+          normal[1] * b.linear_velocity[1] +
+          normal[2] * b.linear_velocity[2];
+
+        const factor = 0.1;
+        const reflection = [
+          factor * b.linear_velocity[0] - 2 * dot_product * normal[0],
+          factor * b.linear_velocity[1] - 2 * dot_product * normal[1],
+          factor * b.linear_velocity[2] - 2 * dot_product * normal[2]
+        ];
+        b.linear_velocity.set(reflection);
+        this.bernard.pos = vec3(this.bernard.pos[0] - reflection[0] * 0.05, this.bernard.pos[1] - reflection[1] * 0.05, this.bernard.pos[2]);
+      }
     }
 
     for (let b of this.asteroids) {
       b.advance(dt);
       const initial_y_position = this.bernard.pos[1] + 15;
       const initial_x_position = this.bernard.pos[0];
-      if(b.center.norm() > 40) {
+      if (b.center.norm() > 40) {
         b.emplace(
-          Mat4.translation(...vec3(initial_x_position + (Math.random()-0.5) * 30, initial_y_position, 2)),
-          vec3(Math.random()*5 - 2.5, -Math.random()*2, 0),
+          Mat4.translation(...vec3(initial_x_position + (Math.random() - 0.5) * 30, initial_y_position, 2)),
+          vec3(Math.random() * 5 - 2.5, -Math.random() * 2, 0),
           Math.random()
-      )
+        )
       }
     }
   }
@@ -189,25 +205,25 @@ class Simulation {
     for (const platform of this.platforms) {
       // const signed_dist = pos.minus(platform.pos).dot(platform_n);
       // console.log(signed_dist);
-      if(pos[1] < platform.pos[1]) {
+      if (pos[1] < platform.pos[1]) {
         continue;
       }
 
       if (
-        leftbody[2] < platform.pos[2] + platform.h/2 &&
-        leftbody[2] > platform.pos[2] - platform.h/2 &&
-        leftbody[0] <= platform.pos[0] + platform.w/2+1 &&
-        pos[0] >  platform.pos[0] + platform.w/2+1 &&
+        leftbody[2] < platform.pos[2] + platform.h / 2 &&
+        leftbody[2] > platform.pos[2] - platform.h / 2 &&
+        leftbody[0] <= platform.pos[0] + platform.w / 2 + 1 &&
+        pos[0] > platform.pos[0] + platform.w / 2 + 1 &&
         Math.abs(leftbody[1] - platform.pos[1]) <= 0.1 // Check y coordinate
       ) {
         const res = "right";
         console.log("collided with the right of the platform");
         return res;
       } else if (
-        rightbody[2] < platform.pos[2] + platform.h/2 &&
-        rightbody[2] > platform.pos[2] - platform.h/2 &&
-        rightbody[0] >= platform.pos[0] - platform.w/2-1 &&
-        pos[0] <  platform.pos[0] -  platform.w/2-1 &&
+        rightbody[2] < platform.pos[2] + platform.h / 2 &&
+        rightbody[2] > platform.pos[2] - platform.h / 2 &&
+        rightbody[0] >= platform.pos[0] - platform.w / 2 - 1 &&
+        pos[0] < platform.pos[0] - platform.w / 2 - 1 &&
         Math.abs(rightbody[1] - platform.pos[1]) <= 0.1 // Check y coordinate
       ) {
         console.log("collided with the left of the platform");
@@ -246,8 +262,8 @@ class Simulation {
 
     // Draw each shape at its current location:
     for (let b of this.asteroids) {
-        b.shape.draw(webgl_manager, uniforms, b.drawn_location, b.material);
-    }    
+      b.shape.draw(webgl_manager, uniforms, b.drawn_location, b.material);
+    }
   }
 }
 
@@ -300,74 +316,70 @@ export const Part_two_spring_base =
       this.right_space_material = { shader, color: color(0, 0, 0, 1), ambient: 1, diffusivity: 0.1, specularity: 0.1, texture: new Texture("./assets/right.png", "LINEAR_MIPMAP_LINEAR") };
       this.ball_location = vec3(1, 1, 1);
       this.ball_radius = 0.25;
-      
-        //set bernard from laura's changes
-        this.simulation.set_bernard(1, -3, 4, 2, 0, 0, 0);
-        this.simulation.create_platform(-3, 1, 2, 15000, 20, 3, 3);
-        this.simulation.create_platform(6, 5, 2, 15000, 20, 2, 2);
-        this.simulation.create_platform(13, 4, 2, 15000, 20, 2, 2);
-        this.simulation.create_platform(-10, 12, 2, 15000, 20, 2, 2);
-        this.simulation.create_platform(-20, 8, 2, 15000, 20, 2, 2);
-        this.simulation.create_platform(-32, 4, 2, 15000, 20, 3, 3);
-        this.simulation.create_platform(2, 42, 2, 15000, 20, 2, 2);
+
+      //set bernard from laura's changes
+      this.simulation.set_bernard(1, -3, 4, 2, 0, 0, 0);
+      this.simulation.create_platform(-3, 1, 2, 15000, 20, 3, 3);
+      this.simulation.create_platform(6, 5, 2, 15000, 20, 2, 2);
+      this.simulation.create_platform(13, 4, 2, 15000, 20, 2, 2);
+      this.simulation.create_platform(-10, 12, 2, 15000, 20, 2, 2);
+      this.simulation.create_platform(-20, 8, 2, 15000, 20, 2, 2);
+      this.simulation.create_platform(-32, 4, 2, 15000, 20, 3, 3);
+      this.simulation.create_platform(2, 42, 2, 15000, 20, 2, 2);
 
 
 
-        //set bernard from michael's changes
-        //this.simulation.set_bernard(1, 2, 4, 2, 1, 0, 1);
-        // this.simulation.create_platform(2.5, 1, 2.5, 12500, 10);
-        // this.simulation.create_platform(5, 2, 5, 12500, 10);
-        this.simulation.create_stars();
-        this.run = false;
-        this.text = new Text_Demo();
-        this.display_ouch = false;
-        this.message_timer = 0;
-        this.score = 0;
-        this.lives = 3;
-        this.time_accumulator = 0;
-        
-        //instantiate star/spline vars
-        this.spline_list = [];
-        this.curve_fn_list = [];
-        this.curve_list = [];
-        for (let i = 0; i < this.simulation.num_splines; i++){
-          // add spline to spline list
-          let type = i % 3;
-          if (type === 0){
-            this.spline_list[i] = new Hermite_Spline();
-            this.spline_list[i].add_point( 20.0, 10.0+(i*10), 0.0, 20.0, -20.0, 0.0);
-            this.spline_list[i].add_point( 0.0,  5.0+(i*10), 0.0, -20.0, 20.0, 0.0);
-            this.spline_list[i].add_point( -20.0, 0.0+(i*10), 0.0, -20.0, 20.0, 0.0);
-          }
-          else if (type === 1){
-            this.spline_list[i] = new Hermite_Spline();
-            this.spline_list[i].add_point( -20.0, 5.0+(i*10), 0.0, 35.0, 0.0, 0.0);
-            this.spline_list[i].add_point( -10.0, 8.0+(i*10), 0.0, 35.0, 0.0, 0.0);
-            this.spline_list[i].add_point( 0.0, 5.0+(i*10), 0.0, 35.0, 0.0, 0.0);
-            this.spline_list[i].add_point( 10.0, 8.0+(i*10), 0.0, 35.0, 0.0, 0.0);
-            this.spline_list[i].add_point( 20.0, 5.0+(i*10), 0.0, 35.0, 0.0, 0.0);
-          }
-          else if (type === 2){
-            this.spline_list[i] = new Hermite_Spline();
-            this.spline_list[i].add_point( -20.0, 10.0+(i*10), 0.0, 20.0, -20.0, 0.0);
-            this.spline_list[i].add_point( 0.0,  5.0+(i*10), 0.0, 20.0, 20.0, 0.0);
-            this.spline_list[i].add_point( 20.0, 0.0+(i*10), 0.0, -20.0, 20.0, 0.0);
-          }
+      //set bernard from michael's changes
+      //this.simulation.set_bernard(1, 2, 4, 2, 1, 0, 1);
+      // this.simulation.create_platform(2.5, 1, 2.5, 12500, 10);
+      // this.simulation.create_platform(5, 2, 5, 12500, 10);
+      this.simulation.create_stars();
+      this.run = false;
+      this.text = new Text_Demo();
+      this.display_ouch = false;
+      this.message_timer = 0;
 
-          // add curve fn to curve fn list
-          this.curve_fn_list[i] = (t) => this.spline_list[i].get_position(t);
-          // add curve to curve list
-          this.curve_list[i] = new Curve_Shape(this.curve_fn_list[i], 100);
+      //instantiate star/spline vars
+      this.spline_list = [];
+      this.curve_fn_list = [];
+      this.curve_list = [];
+      for (let i = 0; i < this.simulation.num_splines; i++) {
+        // add spline to spline list
+        let type = i % 3;
+        if (type === 0) {
+          this.spline_list[i] = new Hermite_Spline();
+          this.spline_list[i].add_point(20.0, 10.0 + (i * 10), 0.0, 20.0, -20.0, 0.0);
+          this.spline_list[i].add_point(0.0, 5.0 + (i * 10), 0.0, -20.0, 20.0, 0.0);
+          this.spline_list[i].add_point(-20.0, 0.0 + (i * 10), 0.0, -20.0, 20.0, 0.0);
         }
-      }
-      render_animation( caller )
-      {                                             
-        const b_pos = this.simulation.bernard.pos;
-        this.uniforms.projection_transform = Mat4.perspective(Math.PI / 4, caller.width / caller.height, 1, 500);
-        this.uniforms.lights = [defs.Phong_Shader.light_source(vec4(0, 69, 100, 1), color(1, 1, 1, 1), 100000)];    // Slight top angle fill light
+        else if (type === 1) {
+          this.spline_list[i] = new Hermite_Spline();
+          this.spline_list[i].add_point(-20.0, 5.0 + (i * 10), 0.0, 35.0, 0.0, 0.0);
+          this.spline_list[i].add_point(-10.0, 8.0 + (i * 10), 0.0, 35.0, 0.0, 0.0);
+          this.spline_list[i].add_point(0.0, 5.0 + (i * 10), 0.0, 35.0, 0.0, 0.0);
+          this.spline_list[i].add_point(10.0, 8.0 + (i * 10), 0.0, 35.0, 0.0, 0.0);
+          this.spline_list[i].add_point(20.0, 5.0 + (i * 10), 0.0, 35.0, 0.0, 0.0);
+        }
+        else if (type === 2) {
+          this.spline_list[i] = new Hermite_Spline();
+          this.spline_list[i].add_point(-20.0, 10.0 + (i * 10), 0.0, 20.0, -20.0, 0.0);
+          this.spline_list[i].add_point(0.0, 5.0 + (i * 10), 0.0, 20.0, 20.0, 0.0);
+          this.spline_list[i].add_point(20.0, 0.0 + (i * 10), 0.0, -20.0, 20.0, 0.0);
+        }
 
-        const t = this.t = this.uniforms.animation_time/1000;
-        const angle = Math.sin( t );
+        // add curve fn to curve fn list
+        this.curve_fn_list[i] = (t) => this.spline_list[i].get_position(t);
+        // add curve to curve list
+        this.curve_list[i] = new Curve_Shape(this.curve_fn_list[i], 100);
+      }
+    }
+    render_animation(caller) {
+      const b_pos = this.simulation.bernard.pos;
+      this.uniforms.projection_transform = Mat4.perspective(Math.PI / 4, caller.width / caller.height, 1, 500);
+      this.uniforms.lights = [defs.Phong_Shader.light_source(vec4(0, 69, 100, 1), color(1, 1, 1, 1), 100000)];    // Slight top angle fill light
+
+      const t = this.t = this.uniforms.animation_time / 1000;
+      const angle = Math.sin(t);
 
       this.uniforms.projection_transform = Mat4.perspective(
         Math.PI / 4,
@@ -389,8 +401,14 @@ export const Part_two_spring_base =
         Mat4.identity(),
         this.materials.rgb
       );
+
       // Always show score in top left corner
-      this.text.show_score_and_lives(caller, this.score, this.lives);
+      this.simulation.text.show_score_and_lives(caller, this.simulation.score, this.simulation.lives);
+
+      if (this.simulation.lives <= 0) {
+        this.simulation.text.show_game_over_or_hit(caller, true);
+        this.run = false;
+      }
 
       const model_transform = Mat4.identity().times(Mat4.scale(400, 400, 400));
       this.shapes.wall.draw(caller, this.uniforms, model_transform.times(Mat4.translation(0, 0, -1)), { ...this.front_space_material });
@@ -430,13 +448,13 @@ export class main extends Part_two_spring_base {
             this.spline_list[i].get_position(curve_sample_t);
         }
         const res = this.simulation.collision();
-        if (res === "left" || res ==="right") {
+        if (res === "left" || res === "right") {
           this.simulation.update(res, dt, () => this.hit_asteroid());
         }
         else {
           this.simulation.update(this.movementFlag, dt, () => this.hit_asteroid());
         }
-        
+
         this.movementFlag = "none"; //reset it
       }
     }
@@ -446,8 +464,8 @@ export class main extends Part_two_spring_base {
       this.text.show_game_over_or_hit(caller, false);
       this.message_timer -= 1;
       if (this.message_timer < 0) {
-          this.message_timer = 0;
-          this.display_ouch = false;
+        this.message_timer = 0;
+        this.display_ouch = false;
       }
     }
 
