@@ -30,21 +30,9 @@ export
                 // Linear velocity first, then angular:
                 this.center = this.center.plus(this.linear_velocity.times(time_amount));
                 this.rotation.pre_multiply(Mat4.rotation(time_amount * this.angular_velocity, ...this.spin_axis));
+                this.drawn_location = Mat4.translation(this.center[0], this.center[1], this.center[2]);
             }
-            blend_rotation(alpha) {                        // blend_rotation(): Just naively do a linear blend of the rotations, which looks
-                // ok sometimes but otherwise produces shear matrices, a wrong result.
 
-                // TODO:  Replace this function with proper quaternion blending, and perhaps
-                // store this.rotation in quaternion form instead for compactness.
-                return this.rotation.map((x, i) => vec4(...this.previous.rotation[i]).mix(x, alpha));
-            }
-            blend_state(alpha) {                             // blend_state(): Compute the final matrix we'll draw using the previous two physical
-                // locations the object occupied.  We'll interpolate between these two states as
-                // described at the end of the "Fix Your Timestep!" blog post.
-                this.drawn_location = Mat4.translation(...this.previous.center.mix(this.center, alpha))
-                    .times(this.blend_rotation(alpha))
-                    .times(Mat4.scale(...this.size));
-            }
             // The following are our various functions for testing a single point,
             // p, against some analytically-known geometric volume formula
             // (within some margin of distance).
@@ -175,8 +163,6 @@ export class Asteroid extends Simulation {                                      
         this.text = new Text_Demo();
         this.display_ouch = false;
         this.message_timer = 0;
-        this.score = 0;
-        this.lives = 3;
     }
     random_color() {
         return {
@@ -185,19 +171,8 @@ export class Asteroid extends Simulation {                                      
             ambient: 0.1
         }
     }
-    lose_game() {
-        this.text.show_game_over_or_hit(this, true);
-        return;
-    }
     update_state(dt) {                 // update_state():  Override the base time-stepping code to say what this particular
         // scene should do to its bodies every frame -- including applying forces.
-
-        // Game over
-        if (this.lives <= 0) {
-            this.lose_game();
-            return;
-        }
-
         // Create the platform
         const platform_size = vec3(10, 1, 5);
         const platform_position = vec3(0, 5, 0);
@@ -207,9 +182,6 @@ export class Asteroid extends Simulation {                                      
         // Update the platform state
         platform.advance(dt);
         platform.blend_state(1);
-
-        // Earn 1 point for every second alive
-        this.score += dt;
 
         // Generate additional moving bodies if there ever aren't enough:
         while (this.bodies.length < 3) { // Change value to increase or decrease the number of asteroids
@@ -253,14 +225,9 @@ export class Asteroid extends Simulation {                                      
             const y_collision = b.center[1] >= this.bernard.pos[1] - leeway && b.center[1] <= this.bernard.pos[1] + leeway;
             const z_collision = b.center[2] >= this.bernard.pos[2] - leeway && b.center[2] <= this.bernard.pos[2] + leeway;
 
-            if (x_collision && y_collision && z_collision) { // Bernard hit by asteroid
-                this.lives -= 1;
+            if (x_collision && y_collision && z_collision) {
                 this.display_ouch = true;
                 this.message_timer = 25;
-
-                if (this.lives <= 0) {
-                    this.lose_game();
-                }
 
                 const distance = Math.sqrt(
                     Math.pow(b.center[0] - this.bernard.pos[0], 2) +
@@ -294,6 +261,8 @@ export class Asteroid extends Simulation {                                      
                 if (this.bernard.pos[1] <= 5) {
                     this.bernard.pos[1] = 5;
                 }
+
+                // TODO: if Bernard is off a platform, fall
             }
         }
 
@@ -326,7 +295,7 @@ export class Asteroid extends Simulation {                                      
 
         // Display Ouch! message when asteroid hits Bernard
         if (this.display_ouch) {
-            this.text.show_game_over_or_hit(caller, false);
+            this.text.render_animation(caller);
             this.message_timer -= 1;
             if (this.message_timer < 0) {
                 this.message_timer = 0;
@@ -334,14 +303,11 @@ export class Asteroid extends Simulation {                                      
             }
         }
 
-        // Always show score in top left corner
-        this.text.show_score_and_lives(this, this.score, this.lives);
-
         // Draw Bernard
         const b_transform = Mat4.scale(2, 2, 2).pre_multiply(Mat4.translation(b_pos[0], b_pos[1], b_pos[2]));
         this.bernard.draw(caller, this.uniforms, this.materials, b_transform);
 
-        let model_transform = Mat4.identity().times(Mat4.scale(400, 400, 400));
+        const model_transform = Mat4.identity().times(Mat4.scale(400, 400, 400));
         this.shapes.wall.draw(caller, this.uniforms, model_transform.times(Mat4.translation(0, 0, -1)), { ...this.front_space_material });
         this.shapes.wall.draw(caller, this.uniforms, model_transform.times(Mat4.rotation(Math.PI / 2, 0, 1, 0)).times(Mat4.translation(0, 0, -1)), { ...this.right_space_material });
         this.shapes.wall.draw(caller, this.uniforms, model_transform.times(Mat4.rotation(-Math.PI / 2, 0, 1, 0)).times(Mat4.translation(0, 0, -1)), { ...this.left_space_material });

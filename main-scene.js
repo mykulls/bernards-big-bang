@@ -28,10 +28,7 @@ import {Text_Demo}
 import {Transforms_Sandbox_Base, Transforms_Sandbox}
     from "./examples/transforms-sandbox.js";
 
-import {Part_one_hermite} from "./part_one_hermite.js";
 import {main} from "./main.js";
-import {Part_three_chain} from "./part_three_chain.js";
-import {Asteroid} from "./asteroid.js";
 
 Object.assign (defs,
     {Minimal_Webgl_Demo},
@@ -44,14 +41,11 @@ Object.assign (defs,
     {Scene_To_Texture_Demo},
     {Text_Demo},
     {Transforms_Sandbox_Base, Transforms_Sandbox},
-    {Part_one_hermite},
-    {Part_three_chain},
-    {Asteroid}
 );
 
 // ******************** SELECT THE DEMO TO DISPLAY:
 
-let scenes = {1: main, 2: Asteroid};
+let scenes = {1: main};
 const scene_selector = (i) => scenes[i];
 
 const main_scene        = main; // default

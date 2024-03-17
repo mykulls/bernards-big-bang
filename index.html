@@ -26,9 +26,6 @@ index.html - The web page document containing the canvas (drawing surface).  It 
 <body style="background: DarkGray">
     <!-- Begin typing your web page's text here. //-->
 
-    <button id="p1">main</button>
-    <button id="p2">asteroid</button>
-
     <!-- The following code embeds a WebGL canvas panel powered by a tree of Components from tiny-graphics.  //-->
     <div id="main-section" class="document-builder"></div>
     <script type=module>
@@ -47,9 +44,6 @@ function select_scene(i) {
     root.animated_children.push (...additional_scenes.map (scene => new scene ()));
     root.render_layout (element_to_replace);
 }
-
-document.getElementById("p1").addEventListener("click", () => { select_scene(1) });
-document.getElementById("p2").addEventListener("click", () => { select_scene(2) });
 </script>
 
 </body>

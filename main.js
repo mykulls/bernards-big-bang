@@ -115,10 +115,10 @@ class Simulation {
         new Body(
             this.random_shape(),
             this.random_color(),
-            vec3(1, Math.random() + 0.5, 1)
+            vec3(1, 1, 1)
         ).emplace(
             Mat4.translation(...vec3(initial_x_position + (Math.random()-0.5) * 30, initial_y_position, 2)),
-            vec3(Math.random()*5 - 2.5, -Math.random()*2, 0),
+            vec3((Math.random()-0.5)*10, -Math.random()*2, 0),
             Math.random()
         )
       );
@@ -163,10 +163,16 @@ class Simulation {
 
     for (let b of this.asteroids) {
       b.advance(dt);
+      const initial_y_position = this.bernard.pos[1] + 15;
+      const initial_x_position = this.bernard.pos[0];
+      if(b.center.norm() > 40) {
+        b.emplace(
+          Mat4.translation(...vec3(initial_x_position + (Math.random()-0.5) * 30, initial_y_position, 2)),
+          vec3(Math.random()*5 - 2.5, -Math.random()*2, 0),
+          Math.random()
+      )
+      }
     }
-
-    // Delete bodies that stray too far away:
-    this.asteroids = this.asteroids.filter(b => b.center.norm() < 40);
   }
 
   collision() {
@@ -196,7 +202,6 @@ class Simulation {
       ) {
         const res = "right";
         console.log("collided with the right of the platform");
-        console.log(platform.pos);
         return res;
       } else if (
         rightbody[2] < platform.pos[2] + platform.h/2 &&
@@ -207,8 +212,6 @@ class Simulation {
       ) {
         console.log("collided with the left of the platform");
         const res = "left";
-        console.log(platform.pos);
-
         return res;
       }
     }
@@ -321,6 +324,7 @@ export const Part_two_spring_base =
         this.message_timer = 0;
         this.score = 0;
         this.lives = 3;
+        this.time_accumulator = 0;
         
         //instantiate star/spline vars
         this.spline_list = [];
@@ -435,9 +439,6 @@ export class main extends Part_two_spring_base {
         
         this.movementFlag = "none"; //reset it
       }
-      for (let b of this.simulation.asteroids) {
-        b.blend_state(t / dt / 10);
-      }
     }
 
     // Display Ouch! message when asteroid hits Bernard
@@ -447,7 +448,7 @@ export class main extends Part_two_spring_base {
       if (this.message_timer < 0) {
           this.message_timer = 0;
           this.display_ouch = false;
-      }  
+      }
     }
 
     this.simulation.draw(caller, this.uniforms, this.shapes, this.materials);
