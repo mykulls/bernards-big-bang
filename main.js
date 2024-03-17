@@ -17,6 +17,7 @@ function platform_forces(platforms, pos, vel) {
     const signed_dist = pos.minus(platform.pos).dot(platform_n);
 
     if (
+      pos[1] > platform.pos[1] - 0.5 &&
       signed_dist < 0 &&
       pos[2] < platform.pos[2] + platform.h &&
       pos[2] > platform.pos[2] - platform.h &&
@@ -109,13 +110,14 @@ class Simulation {
     // Generate additional moving bodies if there ever aren't enough:
     while (this.asteroids.length < 3) { // Change value to increase or decrease the number of asteroids
       const initial_y_position = this.bernard.pos[1] + 15;
+      const initial_x_position = this.bernard.pos[0];
       this.asteroids.push(
         new Body(
             this.random_shape(),
             this.random_color(),
             vec3(1, Math.random() + 0.5, 1)
         ).emplace(
-            Mat4.translation(...vec3(Math.random()*15, initial_y_position, 2)),
+            Mat4.translation(...vec3(initial_x_position + (Math.random()-0.5) * 30, initial_y_position, 2)),
             vec3(Math.random()*5 - 2.5, -Math.random()*2, 0),
             Math.random()
         )
@@ -164,7 +166,7 @@ class Simulation {
     }
 
     // Delete bodies that stray too far away:
-    this.asteroids = this.asteroids.filter(b => b.center.norm() < 20);
+    this.asteroids = this.asteroids.filter(b => b.center.norm() < 40);
   }
 
   collision() {
@@ -181,26 +183,32 @@ class Simulation {
     for (const platform of this.platforms) {
       // const signed_dist = pos.minus(platform.pos).dot(platform_n);
       // console.log(signed_dist);
+      if(pos[1] < platform.pos[1]) {
+        continue;
+      }
 
       if (
-        leftbody[2] < platform.pos[2] + platform.h &&
-        leftbody[2] > platform.pos[2] - platform.h &&
-        leftbody[0] >= platform.pos[0] + platform.w &&
-        pos[0] >  platform.pos[0] &&
+        leftbody[2] < platform.pos[2] + platform.h/2 &&
+        leftbody[2] > platform.pos[2] - platform.h/2 &&
+        leftbody[0] <= platform.pos[0] + platform.w/2+1 &&
+        pos[0] >  platform.pos[0] + platform.w/2+1 &&
         Math.abs(leftbody[1] - platform.pos[1]) <= 0.1 // Check y coordinate
       ) {
         const res = "right";
         console.log("collided with the right of the platform");
+        console.log(platform.pos);
         return res;
       } else if (
-        rightbody[2] < platform.pos[2] + platform.h &&
-        rightbody[2] > platform.pos[2] - platform.h &&
-        rightbody[0] >= platform.pos[0] - platform.w &&
-        pos[0] <  platform.pos[0] &&
+        rightbody[2] < platform.pos[2] + platform.h/2 &&
+        rightbody[2] > platform.pos[2] - platform.h/2 &&
+        rightbody[0] >= platform.pos[0] - platform.w/2-1 &&
+        pos[0] <  platform.pos[0] -  platform.w/2-1 &&
         Math.abs(rightbody[1] - platform.pos[1]) <= 0.1 // Check y coordinate
       ) {
         console.log("collided with the left of the platform");
         const res = "left";
+        console.log(platform.pos);
+
         return res;
       }
     }
@@ -222,7 +230,7 @@ class Simulation {
         platform.pos[0],
         platform.pos[1],
         platform.pos[2]
-      ).times(Mat4.scale(platform.w, 0.1, platform.h));
+      ).times(Mat4.scale(platform.w, 0.5, platform.h));
       shapes.box.draw(webgl_manager, uniforms, p1_t, {
         ...materials.platform,
       });
@@ -292,8 +300,16 @@ export const Part_two_spring_base =
       
         //set bernard from laura's changes
         this.simulation.set_bernard(1, -3, 4, 2, 0, 0, 0);
-        this.simulation.create_platform(-5, 1, 2, 15000, 20, 5, 5);
-        this.simulation.create_platform(5, 2, 5, 15000, 20, 5, 5);
+        this.simulation.create_platform(-3, 1, 2, 15000, 20, 3, 3);
+        this.simulation.create_platform(6, 5, 2, 15000, 20, 2, 2);
+        this.simulation.create_platform(13, 4, 2, 15000, 20, 2, 2);
+        this.simulation.create_platform(-10, 12, 2, 15000, 20, 2, 2);
+        this.simulation.create_platform(-20, 8, 2, 15000, 20, 2, 2);
+        this.simulation.create_platform(-32, 4, 2, 15000, 20, 3, 3);
+        this.simulation.create_platform(2, 42, 2, 15000, 20, 2, 2);
+
+
+
         //set bernard from michael's changes
         //this.simulation.set_bernard(1, 2, 4, 2, 1, 0, 1);
         // this.simulation.create_platform(2.5, 1, 2.5, 12500, 10);
@@ -437,7 +453,7 @@ export class main extends Part_two_spring_base {
     this.simulation.draw(caller, this.uniforms, this.shapes, this.materials);
     const b_pos = this.simulation.bernard.pos;
     Shader.assign_camera(
-      Mat4.translation(-b_pos[0], -b_pos[1] - 2.5, -b_pos[2] - 20),
+      Mat4.translation(-b_pos[0], -b_pos[1] - 2, -b_pos[2] - 20),
       this.uniforms
     ); // Locate the camera here (inverted matrix).
   }
